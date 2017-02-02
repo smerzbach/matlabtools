@@ -73,10 +73,9 @@ classdef tonemapper < handle
         end
         
         function im = tonemap(obj, im, varargin)
-            was_img = true;
-            if ~isa(im, 'img')
+            was_img = isa(im, 'img');
+            if ~was_img
                 im = img(im);
-                was_img = false;
             end
             
             switch obj.method
