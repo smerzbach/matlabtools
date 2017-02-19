@@ -117,7 +117,8 @@ classdef img < handle & matlab.mixin.Copyable
             img_inds = cellfun(@(x) isa(x, 'img'), varargin);
             arr_inds = cellfun(@(x) isnumeric(x), varargin);
             if ~all(img_inds | arr_inds)
-                error('only img objects and numeric arrays can be concatenated.');
+                error('img:cat_input_mismatch', ...
+                    'only img objects and numeric arrays can be concatenated.');
             end
             imgs = varargin(img_inds);
             arrays = varargin(arr_inds);
@@ -145,18 +146,21 @@ classdef img < handle & matlab.mixin.Copyable
             
             % check array sizes: they should either exactly match the image
             % sizes (except dim), or should be divisors of the image sizes
-            sizesa = cellfun(@(x) [size(x), ones(1, 4 - ndims(x))], arrays, 'UniformOutput', false);
-            sizesa = vertcat(sizesa{:});
-            
-            factors = bsxfun(@rdivide, sizesi(1, :), sizesa);
-            factors(:, dim) = 1;
-            assert(all(rem(factors(:), 1) == 0), ['size of array(s) must match '...
-                'the image or be repeatable to match the image size, got '...
-                'scaling factors: %f, %f, %f, %f\n'], factors(~all(rem(factors, 1) == 0, 2), :)');
-            
-            % repeat the arrays, if necessary
-            arrays2 = cellfun(@(x, r) repmat(x, r), arrays(:), ...
-                mat2cell(factors, ones(size(factors, 1), 1), 4), 'UniformOutput', false);
+            arrays2 = {};
+            if ~isempty(arrays)
+                sizesa = cellfun(@(x) [size(x), ones(1, 4 - ndims(x))], arrays, 'UniformOutput', false);
+                sizesa = vertcat(sizesa{:});
+
+                factors = bsxfun(@rdivide, sizesi(1, :), sizesa);
+                factors(:, dim) = 1;
+                assert(all(rem(factors(:), 1) == 0), ['size of array(s) must match '...
+                    'the image or be repeatable to match the image size, got '...
+                    'scaling factors: %f, %f, %f, %f\n'], factors(~all(rem(factors, 1) == 0, 2), :)');
+
+                % repeat the arrays, if necessary
+                arrays2 = cellfun(@(x, r) repmat(x, r), arrays(:), ...
+                    mat2cell(factors, ones(size(factors, 1), 1), 4), 'UniformOutput', false);
+            end
             
             % now collect all inputs as numeric arrays in the correct order
             all_arrays = cell(1, numel(varargin));
@@ -167,7 +171,7 @@ classdef img < handle & matlab.mixin.Copyable
             % single uint8 array in the inputs would result in a uint8 img
             % as output), so we manually cast everything to the highest
             % precision type among the inputs
-            [type, differ] = utils.get_common_type(all_arrays{:});
+            [type, differ] = tb.get_common_type(all_arrays{:});
             if differ
                 all_arrays = cellfun(@(x) cast(x, type), all_arrays, 'UniformOutput', false);
             end
