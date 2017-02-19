@@ -26,5 +26,13 @@
 % This function limits values inside an array to lie between a lower and
 % upper bound.
 function values = clamp(values, minimum, maximum)
+    if ~exist('minimum', 'var')
+        minimum = 0;
+    end
+    
+    if ~exist('maximum', 'var')
+        maximum = 1;
+    end
+    
     values = max(minimum, min(maximum, values));
 end
