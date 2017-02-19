@@ -620,7 +620,7 @@ classdef img < handle & matlab.mixin.Copyable
                             end
                         elseif strcmp(S.type, '{}')
                             error('2');
-                        else
+                        elseif ~strcmp(S.subs, 'cdata')
                             error('3');
                         end
                     else
