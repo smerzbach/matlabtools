@@ -825,6 +825,48 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
+        function wavelengths = get_wavelengths(obj)
+            % try to return wavelengths in a numeric array for
+            % multispectral images, or an empty array if the image is not
+            % spectral
+            if ~obj.is_spectral()
+                % non-multispectral images should clearly signal that they
+                % don't have anything like a wavelength assignment for
+                % their channels
+                wavelengths = [];
+            elseif isnumeric(obj.channel_names)
+                % the easy case
+                wavelengths = obj.channel_names;
+            else
+                % try to match strings of the form '380.00-389.70nm', as
+                % produced e.g. by Mitsuba Renderer, if this fails, try to
+                % parse any kind of numbers from the channel name strings
+                tokens = regexpi(obj.channel_names, ...
+                    '(\d*\.\d{2,})-(\d*\.\d{2,})nm', 'tokens');
+                if ~any(cellfun(@isempty, tokens))
+                    % if the above format matches, to get a numerical array
+                    % the only reasonable thing to do is to take the
+                    % central wavelengths
+                    
+                    bins_start = cellfun(@(x) str2double(x{1}{1}), tokens);
+                    bins_end = cellfun(@(x) str2double(x{1}{2}), tokens);
+                    wavelengths = mean([bins_start(:), bins_end(:)], 2);
+                else
+                    % attempt to parse numbers from the channel names
+                    wavelengths = cellfun(@str2double, obj.channel_names);
+                    if any(isnan(wavelengths))
+                        % last resort
+                        wavelengths = cellfun(@(x) sscanf(x, '%f'), ...
+                            obj.channel_names);
+                        if any(isnan(wavelengths))
+                            error('img:channels_non_numeric', ...
+                                'cannot convert channel names to numeric values!');
+                        end
+                    end
+                end
+            end
+        end
+        
         function set_channel_names(obj, channel_names)
             % update the image's channel names
             assert(numel(channel_names) == size(obj.cdata, 3), ...
@@ -902,7 +944,7 @@ classdef img < handle & matlab.mixin.Copyable
                 % convert multispectral image with the CIE standard
                 % observer curves
                 [cie_xyz, cie_wls] = tb.ciexyz();
-                mat_xyz = interp1(cie_wls, cie_xyz, obj.channel_names, 'linear', 0);
+                mat_xyz = interp1(cie_wls, cie_xyz, obj.get_wavelengths(), 'linear', 0);
                 
                 obj_out = mat_xyz * obj;
             else
