@@ -311,6 +311,40 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
+        function obj_out = rdivide(obj, input)
+            % right division by scalar (element-wise), vector (pixel-wise)
+            % or matrix (channel-wise)
+            if ~isa(obj, 'img') && isa(input, 'img')
+                % [1; 2; 3] ./ im_obj does not make sense
+                error('img:array_division', 'right array division must be used as: im_obj ./ vector.');
+            end
+            if isa(input, 'img')
+                input = input.cdata;
+            end
+            
+            s = obj.size4();
+            sin = zeros(1, 4);
+            sin(1 : ndims(input)) = size(input);
+            obj_out = obj.copy();
+            
+            if isscalar(input)
+                input = repmat(input, 1, 1, s(3));
+            elseif isvector(input)
+                assert(numel(input) == s(3), ...
+                    'input length must match the number of channels in the image!');
+                input = reshape(input, 1, 1, s(3));
+            elseif ismatrix(input)
+                assert(all(sin(1 : 2) == s(1 : 2)), ...
+                    'image x and y dimensions must match for right division by a matrix!');
+                input = repmat(input, 1, 1, s(3));
+            else
+                assert(all(sin(1 : 3) == s(1 : 3)), ...
+                    'all image dimensions must match for division by a 3D array!');
+            end
+            
+            obj_out.cdata = bsxfun(@rdivide, obj_out.cdata, input);
+        end
+        
         function obj_out = power(obj, exponent)
             % element-wise power
             obj_out = obj.copy();
