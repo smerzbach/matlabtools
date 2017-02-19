@@ -97,6 +97,11 @@ classdef img < handle & matlab.mixin.Copyable
             obj.listener_handle = addlistener(obj, 'cdata', 'PostSet', @obj.changed);
         end
         
+        function obj_out = clone(obj)
+            % a simple alias for copy()
+            obj_out = obj.copy();
+        end
+        
         function obj_out = horzcat(varargin)
             % horizontal concatenation [i1, i2, i3, ...] of img objects and
             % / or numeric arrays
@@ -710,6 +715,12 @@ classdef img < handle & matlab.mixin.Copyable
                 s = obj.size4();
                 ind = s(k);
             end
+        end
+        
+        function obj_out = reshape(obj, varargin)
+            % reshape the underlying array
+            obj_out = obj.copy();
+            obj_out.cdata = reshape(obj_out.cdata, varargin{:});
         end
         
         function height = height(obj)
