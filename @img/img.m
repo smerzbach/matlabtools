@@ -30,7 +30,9 @@ classdef img < handle & matlab.mixin.Copyable
     end
     
     properties(GetAccess = public, SetAccess = protected)
-        channel_names; % e.g. 'RGB' or numeric values for multispectral
+        % e.g. 'RGB' or numeric values for multispectral images, can also
+        % store arbitrary cell arrays of strings
+        channel_names;
     end
     
     properties(Access = public)
@@ -690,6 +692,8 @@ classdef img < handle & matlab.mixin.Copyable
                                     otherwise
                                         obj.extrapolate = true;
                                 end
+                            case {'channel_names', 'channels', 'wavelengths', 'wls'}
+                                obj.set_channel_names(assignment);
                             otherwise
                                 % pass through all other properties to
                                 % builtin
@@ -816,9 +820,17 @@ classdef img < handle & matlab.mixin.Copyable
         function tf = is_spectral(obj)
             % check if image is multispectral
             tf = false;
-            if isnumeric(obj.channel_names)
+            if ~(obj.is_monochrome() || obj.is_rgb() || obj.is_XYZ())
                 tf = true;
             end
+        end
+        
+        function set_channel_names(obj, channel_names)
+            % update the image's channel names
+            assert(numel(channel_names) == size(obj.cdata, 3), ...
+                ['Number of elements in the channel names', ...
+                'must match the number of image channels.']);
+            obj.channel_names = channel_names;
         end
         
 %% CONVERTERS
