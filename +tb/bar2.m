@@ -36,13 +36,23 @@ function bar_handle = bar2(bar_handle, xdata, ydata, varargin)
     
     assert(size(xdata, 2) == n, 'first dimension of xdata and ydata must match!');
     
-    % create new axes object?
-    create = isempty(bar_handle);
-    
-    if create
+    % create new bar object?
+    create_new = false;
+    if isempty(bar_handle)
         % we have to create new plot objects
         axes_handle = axes();
         hold(axes_handle, 'on');
+        create_new = true;
+    elseif isa(bar_handle, 'matlab.graphics.axis.Axes')
+        axes_handle = bar_handle;
+        create_new = true;
+    elseif isa(bar_handle, 'matlab.graphics.chart.primitive.Bar')
+        axes_handle = bar_handle(1).Parent;
+    else
+        error('bar2:input_format', 'input must be bar handle or axes handle!');
+    end
+    
+    if create_new
         bar_handle = bar(xdata, ydata, ...
             'Parent', axes_handle, varargin{:});
     else
