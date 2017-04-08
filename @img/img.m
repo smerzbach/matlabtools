@@ -74,10 +74,21 @@ classdef img < handle & matlab.mixin.Copyable
                 end
                 switch lower(varargin{ii})
                     case {'channel_names', 'channels', 'chans', 'wls', 'wavelengths'}
-                        assert(numel(varargin{ii + 1}) == size(obj.cdata, 3), ...
+                        channel_names = varargin{ii + 1};
+                        if ischar(channel_names) || isnumeric(channel_names)
+                            channel_names = num2cell(channel_names);
+                        end
+                        if ~iscell(channel_names)
+                            error('img:channel_format', ...
+                                'channel names must be provided as cell array');
+                        end
+                        assert(numel(channel_names) == size(obj.cdata, 3), ...
                             ['Number of elements in the channel names argument ', ...
                             'must match the number of channels.']);
-                        obj.channel_names = varargin{ii + 1};
+                        obj.set_channel_names(channel_names);
+                        if obj.is_spectral()
+                            obj.set_channel_names(num2cell(obj.get_wavelengths()));
+                        end
                     otherwise
                         error('img:unknown_param', 'Unknown parameter %s.', varargin{ii});
                 end
@@ -88,13 +99,13 @@ classdef img < handle & matlab.mixin.Copyable
                 switch size(obj.cdata, 3)
                     case 1
                         % luminosity
-                        obj.channel_names = 'L';
+                        obj.channel_names = {'L'};
                     case 3
                         % RGB is default for 3 channels
-                        obj.channel_names = 'RGB';
+                        obj.channel_names = {'R', 'G', 'B'};
                     otherwise
                         % assign uniform sampling between 400 and 700 nm
-                        obj.channel_names = linspace(400, 700, size(obj.cdata, 3));
+                        obj.channel_names = num2cell(linspace(400, 700, size(obj.cdata, 3)));
                 end
             end
             
@@ -482,6 +493,10 @@ classdef img < handle & matlab.mixin.Copyable
                             varargout{1} = obj.num_channels();
                         case {'num_frames', 'nf'}
                             varargout{1} = obj.height();
+                        case {'channel_names', 'channels'}
+                            varargout{1} = obj.get_channel_names();
+                        case {'wavelengths', 'wls'}
+                            varargout{1} = obj.get_wavelengths();
                         otherwise
                             % pass all other properties to builtin
 
@@ -622,7 +637,8 @@ classdef img < handle & matlab.mixin.Copyable
                     if interpolate || extrapolate %#ok<PROPLC>
                         varargout{1} = obj.interp(subs{[2, 1, 3, 4]});
                     else
-                        varargout{1} = obj.get(subs{[2, 1, 3, 4]}, true);
+                        [varargout{1}, channel_names_out] = ...
+                            obj.get(subs{[2, 1, 3, 4]}, true);
                     end
                 else
                     % ii(123, mask) and everything else
@@ -801,7 +817,7 @@ classdef img < handle & matlab.mixin.Copyable
         function tf = is_monochrome(obj)
             % check if image has only one channel
             tf = false;
-            if obj.num_channels == 1
+            if obj.num_channels == 1 && ~isnumeric(obj.channel_names{1})
                 tf = true;
             end
         end
@@ -813,9 +829,8 @@ classdef img < handle & matlab.mixin.Copyable
                 return;
             end
             
-            if ischar(obj.channel_names) && strcmpi(obj.channel_names, 'rgb') ...
-                    || iscell(obj.channel_names) && all(cellfun(@strcmpi, ...
-                    obj.channel_names, {'r', 'g', 'b'}))
+            if iscell(obj.channel_names) && all(cellfun(@strcmpi, ...
+                    obj.channel_names(:), {'r'; 'g'; 'b'}))
                 tf = true;
             end
         end
@@ -827,9 +842,8 @@ classdef img < handle & matlab.mixin.Copyable
                 return;
             end
             
-            if ischar(obj.channel_names) && strcmpi(obj.channel_names, 'XYZ') ...
-                    || iscell(obj.channel_names) && all(cellfun(@strcmpi, ...
-                    obj.channel_names, {'x', 'y', 'z'}))
+            if iscell(obj.channel_names) && all(cellfun(@strcmpi, ...
+                    obj.channel_names(:), {'x'; 'y'; 'z'}))
                 tf = true;
             end
         end
@@ -842,7 +856,7 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
-        function wavelengths = get_wavelengths(obj)
+        function wavelengths = get_wavelengths(obj, input)
             % try to return wavelengths in a numeric array for
             % multispectral images, or an empty array if the image is not
             % spectral
@@ -851,9 +865,10 @@ classdef img < handle & matlab.mixin.Copyable
                 % don't have anything like a wavelength assignment for
                 % their channels
                 wavelengths = [];
-            elseif isnumeric(obj.channel_names)
+            elseif iscell(obj.channel_names) && ...
+                    all(cellfun(@isnumeric, obj.channel_names))
                 % the easy case
-                wavelengths = obj.channel_names;
+                wavelengths = cell2mat(obj.channel_names);
             else
                 % try to match strings of the form '380.00-389.70nm', as
                 % produced e.g. by Mitsuba Renderer, if this fails, try to
@@ -873,19 +888,43 @@ classdef img < handle & matlab.mixin.Copyable
                     wavelengths = cellfun(@str2double, obj.channel_names);
                     if any(isnan(wavelengths))
                         % last resort
-                        wavelengths = cellfun(@(x) sscanf(x, '%f'), ...
-                            obj.channel_names);
-                        if any(isnan(wavelengths))
-                            error('img:channels_non_numeric', ...
-                                'cannot convert channel names to numeric values!');
+                        try
+                            wavelengths = cellfun(@(x) sscanf(x, '%f'), ...
+                                obj.channel_names);
+                            if any(isnan(wavelengths))
+                                error('img:channels_non_numeric', ...
+                                    'cannot convert channel names to numeric values!');
+                            end
+                        catch
+                            wavelengths = [];
                         end
                     end
                 end
             end
+            
+            % select certain channels only
+            if exist('input', 'var')
+                wavelengths = wavelengths(input);
+            end
+        end
+        
+        function channel_names = get_channel_names(obj)
+            % get string representation of image channel names
+            channel_names = obj.channel_names;
+            num_inds = cellfun(@isnumeric, channel_names);
+            channel_names(num_inds) = cellfun(@num2str, channel_names(num_inds), ...
+                'UniformOutput', false);
+        end
+        
+        function channel_names = get_channel_names_raw(obj)
+            % get string or numeric representation of image channel names
+            channel_names = obj.channel_names;
         end
         
         function set_channel_names(obj, channel_names)
             % update the image's channel names
+            assert(iscell(channel_names), ...
+                'Channel names must be provided as a cell array.');
             assert(numel(channel_names) == size(obj.cdata, 3), ...
                 ['Number of elements in the channel names', ...
                 'must match the number of image channels.']);
@@ -1071,7 +1110,7 @@ classdef img < handle & matlab.mixin.Copyable
             [ys, xs, cs, fs] = deal(subs{:});
         end
         
-        function values = get(obj, xs, ys, channels, frames, cart_prod)
+        function [values, channel_names] = get(obj, xs, ys, channels, frames, cart_prod)
             % direct access to the image data; if the card_prod agrument is
             % true, then x and y coordinates are treated as pairs instead
             % of forming their cartesian product
@@ -1086,6 +1125,9 @@ classdef img < handle & matlab.mixin.Copyable
             if ~exist('cart_prod', 'var')
                 cart_prod = true;
             end
+            
+            % return the selected channel names
+            channel_names = obj.channel_names(channels);
             
             if cart_prod
                 % conventional indexing
