@@ -48,7 +48,8 @@ classdef tonemapper < handle
             
             for ii = 1 : 2 : numel(varargin)
                 if ~ischar(varargin{ii})
-                    error('Inputs should be name-value pairs of parameters.');
+                    error('tonemapper:invalid_input', ...
+                        'Inputs should be name-value pairs of parameters.');
                 end
                 
                 switch lower(varargin{ii})
@@ -61,13 +62,15 @@ classdef tonemapper < handle
                     case 'method'
                         method = varargin{ii + 1};
                         if ~ismember(method, {'simple'})
-                            error('method must be ''simple''.');
+                            error('tonemapper:illegal_method', ...
+                                'method must be ''simple''.');
                         end
                         obj.method = method;
                     case 'callback'
                         obj.callback = varargin{ii + 1};
                     otherwise
-                        error('unknown parameter name %s', varargin{ii});
+                        error('tonemapper:unsupported_argument', ...
+                            'unknown parameter name %s', varargin{ii});
                 end
             end
         end
@@ -82,7 +85,8 @@ classdef tonemapper < handle
                 case 'simple'
                     im = obj.tonemap_simple(im, varargin{:});
                 otherwise
-                    error('unsupported tonemapping method selcte');
+                    error('tonemapper:unsupported_method', ...
+                        'unsupported tonemapping method selcte');
             end
             
             if ~was_img
@@ -130,7 +134,8 @@ classdef tonemapper < handle
             elseif im.is_spectral()
                 im = im.to_rgb();
             elseif im.nc ~= 3
-                error('unsupported number of channels (%d).', im.nc);
+                error('tonemapper:unsupported_channels', ...
+                    'unsupported number of channels (%d).', im.nc);
             end
             
             % todo: allow mapping negative values with gamma

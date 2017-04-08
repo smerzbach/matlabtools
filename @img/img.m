@@ -60,7 +60,8 @@ classdef img < handle & matlab.mixin.Copyable
                 elseif isa(varargin{1}, 'img')
                     obj = varargin{1}.copy();
                 else
-                    error('cannot construct img object from class %s', class(varargin{1}));
+                    error('img:construction_failed', ...
+                        'cannot construct img object from class %s', class(varargin{1}));
                 end
                 varargin = varargin(2 : end);
             end
@@ -68,7 +69,8 @@ classdef img < handle & matlab.mixin.Copyable
             % parse name-value pairs
             for ii = 1 : 2 : numel(varargin)
                 if ~ischar(varargin{ii})
-                    error('Inputs should be name-value pairs of parameters.');
+                    error('img:name_value_pairs', ...
+                        'Inputs should be name-value pairs of parameters.');
                 end
                 switch lower(varargin{ii})
                     case {'channel_names', 'channels', 'chans', 'wls', 'wavelengths'}
@@ -77,7 +79,7 @@ classdef img < handle & matlab.mixin.Copyable
                             'must match the number of channels.']);
                         obj.channel_names = varargin{ii + 1};
                     otherwise
-                        error('Unknown parameter %s.', varargin{ii});
+                        error('img:unknown_param', 'Unknown parameter %s.', varargin{ii});
                 end
             end
             
@@ -232,7 +234,8 @@ classdef img < handle & matlab.mixin.Copyable
                 
                 obj_out.cdata = obj_out.cdata + b.cdata;
             else
-                error('sizes don''t match and arrays / imgs cannot be repeated.');
+                error('img:plus_dimension_mismatch', ...
+                    'sizes don''t match and arrays / imgs cannot be repeated.');
             end
         end
         
@@ -272,7 +275,8 @@ classdef img < handle & matlab.mixin.Copyable
                 
                 obj_out.cdata = obj_out.cdata - b.cdata;
             else
-                error('sizes don''t match and arrays / imgs cannot be repeated.');
+                error('img:minus_dimension_mismatch', ...
+                    'sizes don''t match and arrays / imgs cannot be repeated.');
             end
         end
         
@@ -292,7 +296,8 @@ classdef img < handle & matlab.mixin.Copyable
                 input = tmp';
             end
             if ~ismatrix(input)
-                error('multiplication can only be performed with scalars or matrices.');
+                error('img:mtimes_input', ...
+                    'multiplication can only be performed with scalars or matrices.');
             end
             
             s = obj.size4();
@@ -455,8 +460,9 @@ classdef img < handle & matlab.mixin.Copyable
             s = obj.size4();
             n = numel(subs);
             
-            if numel(obj) > 1
-                error('arrays of img objects are not supported. please use cell arrays!');
+            if builtin('numel', obj) > 1
+                error('img:object_arrays', ...
+                    'arrays of img objects are not supported. please use cell arrays!');
             end
             if strcmp(S(1).type, '.')
                 % access to properties or methods
@@ -482,12 +488,14 @@ classdef img < handle & matlab.mixin.Copyable
                             % take property attributes into account!
                             prop = obj.findprop(S(1).subs);
                             if isempty(prop)
-                                error('no such property ''%s''.', S(1).subs);
+                                error('img:missing_property', ...
+                                    'no such property ''%s''.', S(1).subs);
                             end
                             if strcmp(prop.GetAccess, 'public')
                                 varargout{1} = builtin('subsref', obj, S);
                             else
-                                error('reading ''%s'' is not allowed.', S(1).subs);
+                                error('img:private_property', ...
+                                    'reading ''%s'' is not allowed.', S(1).subs);
                             end
                     end
                 else
@@ -500,7 +508,8 @@ classdef img < handle & matlab.mixin.Copyable
 
                 if numel(S) > 1
                     % no chained subscripting like foo(1, 1 : 2)(3)
-                    error('no support for this operation.');
+                    error('img:no_chained_subscripting', ...
+                        'no support for this operation.');
                 end
 
                 if isa(subs{1}, 'tb.ind_obj')
@@ -526,7 +535,8 @@ classdef img < handle & matlab.mixin.Copyable
                     % which means the samples need to be interpolated
                     interpolate = any(cellfun(@(x) nnz(rem(x, 1)), subs)); %#ok<PROPLC>
                     if interpolate && ~obj.interpolate %#ok<PROPLC>
-                        error('subscript indices must be whole numbers. forgot to enable interpolation?');
+                        error('img:no_interpolation', ...
+                            'subscript indices must be whole numbers. forgot to enable interpolation?');
                     end
                     
                     % check if there are subscripts outside of the image
@@ -540,7 +550,8 @@ classdef img < handle & matlab.mixin.Copyable
                         end
                     end
                     if extrapolate && ~obj.extrapolate %#ok<PROPLC>
-                        error('subscript indices out of range. forgot to enable extrapolation?');
+                        error('img:no_extrapolation', ...
+                            'subscript indices out of range. forgot to enable extrapolation?');
                     end
                 end
                 
@@ -652,7 +663,8 @@ classdef img < handle & matlab.mixin.Copyable
                     if numel(S) == 1
                         if strcmp(S.type, '()')
                             if numel(S) > 1% || S.subs{1} ~= 1
-                                error('arrays of img objects are not supported. please use cell arrays!');
+                                error('img:object_arrays', ...
+                                    'arrays of img objects are not supported. please use cell arrays!');
                             end
                         elseif strcmp(S.type, '{}')
                             error('2');
@@ -705,9 +717,12 @@ classdef img < handle & matlab.mixin.Copyable
                                 else
                                     % customize some error messages
                                     if strcmp(S(1).subs, 'cdata')
-                                        error('setting ''%s'' is not allowed. use ''obj(:, :, :, :) = array;'' instead.', S(1).subs);
+                                        error('img:cdata_private', ...
+                                            ['setting cdata is not allowed. ', ...
+                                            'use ''obj(:, :, :, :) = array;'' instead.']);
                                     else
-                                        error('setting ''%s'' is not allowed.', S(1).subs);
+                                        error('img:property_private', ...
+                                            'setting ''%s'' is not allowed.', S(1).subs);
                                     end
                                 end
                         end
@@ -722,14 +737,16 @@ classdef img < handle & matlab.mixin.Copyable
                         inds_new = substruct('.', 'cdata', '()', S.subs(:));
                         obj = subsasgn(obj, inds_new, assignment);
                     else
-                        error('operation not supported.');
+                        error('img:no_chained_subscripting', ...
+                            'operation not supported.');
                     end
                 case '{}'
-                    error('operation not supported.');
+                    error('img:no_assignment_to_curly_braces', ...
+                        'operation not supported.');
             end
         end
         
-        function n = numArgumentsFromSubscript(obj, indices, indexingContext)
+        function n = numArgumentsFromSubscript(obj, indices, indexingContext) %#ok<INUSL>
             % number of return arguments for customized indexing using
             % subsref / subsasgn
             switch indexingContext
@@ -948,7 +965,8 @@ classdef img < handle & matlab.mixin.Copyable
                 
                 obj_out = mat_xyz * obj;
             else
-                error('Conversion from channel format %s to XYZ is not possible.', ...
+                error('img:illegal_conversion', ...
+                    'Conversion from channel format %s to XYZ is not possible.', ...
                     obj.channels_to_str());
             end
             obj_out.channel_names = 'XYZ';
@@ -968,7 +986,8 @@ classdef img < handle & matlab.mixin.Copyable
                 obj_out = obj_XYZ.copy();
                 obj_out.cdata = xyz2rgb(obj_XYZ.cdata);
             else
-                error('Conversion from channel format %s to RGB is not possible.', ...
+                error('img:illegal_conversion', ...
+                    'Conversion from channel format %s to RGB is not possible.', ...
                     obj.channels_to_str());
             end
             obj_out.channel_names = 'RGB';
@@ -996,11 +1015,11 @@ classdef img < handle & matlab.mixin.Copyable
             
         end
         
-        function read(obj, file_path, varargin)
+        function read(obj, file_path, varargin) %#ok<INUSD>
             
         end
         
-        function obj_out = colon(obj, num_frames, other_obj)
+        function obj_out = colon(obj, num_frames, other_obj) %#ok<STOUT,INUSD>
             % interpolates two images or creates multiple frames in between
         end
     end
@@ -1016,7 +1035,7 @@ classdef img < handle & matlab.mixin.Copyable
 %             % customize copy behavior
 %         end
         
-        function changed(obj, src, evnt)
+        function changed(obj, src, evnt) %#ok<INUSD>
             % change listener callback updates all assigned viewer objects
             if ~isempty(obj.viewers)
                 for vi = 1 : numel(obj.viewers)
@@ -1043,7 +1062,8 @@ classdef img < handle & matlab.mixin.Copyable
                     if strcmp(subs{ii}, ':')
                         subs{ii} = 1 : s(ii);
                     else
-                        error('unsupported character indexing: %s', subs{ii});
+                        error('img:illegal_char_subs', ...
+                            'unsupported character indexing: %s', subs{ii});
                     end
                 end
             end

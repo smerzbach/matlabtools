@@ -52,7 +52,8 @@ classdef iv < handle
                 elseif strcmpi(varargin{ii}, 'paramName')
                     
                 else
-                    error('unkown parameter name %s', varargin{ii});
+                    error('iv:unsupported_parameter', ...
+                        'unkown parameter name %s', varargin{ii});
                 end
             end
             [obj.figure_handle, obj.parent_handle, obj.axes_handle] = ...
