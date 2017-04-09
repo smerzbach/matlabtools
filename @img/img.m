@@ -380,6 +380,12 @@ classdef img < handle & matlab.mixin.Copyable
                     tmp = tmp * input.';
                     obj_out.cdata(:, :, :, fi) = reshape(tmp, s(1), s(2), nrows);
                 end
+                
+                % invalidate channel names after matrix-image
+                % multiplication (meaning or even number of channels
+                % changes)
+                obj_out.channel_names = cellfun(@(x) sprintf('C%d', x), ...
+                    num2cell(1 : obj_out.num_channels), 'UniformOutput', false);
             end
         end
         
