@@ -1123,11 +1123,17 @@ classdef img < handle & matlab.mixin.Copyable
                     'Conversion from channel format %s to XYZ is not possible.', ...
                     obj.channels_to_str());
             end
-            obj_out.channel_names = 'XYZ';
+            obj_out.channel_names = {'X', 'Y', 'Z'};
         end
         
-        function obj_out = to_rgb(obj)
-            % convert image to RGB color space
+        function obj_out = to_rgb(obj, conversion_mat)
+            % convert image to RGB color space, optionally with custom
+            % conversion matrix
+            
+            if ~exist('conversion_mat', 'var')
+                conversion_mat = [];
+            end
+
             if obj.is_rgb()
                 % nothing to do
                 obj_out = obj.copy();
@@ -1136,15 +1142,30 @@ classdef img < handle & matlab.mixin.Copyable
                 obj_out = obj.copy();
                 obj_out.cdata = xyz2rgb(obj.cdata);
             elseif obj.is_spectral()
-                obj_XYZ = obj.to_XYZ();
-                obj_out = obj_XYZ.copy();
-                obj_out.cdata = xyz2rgb(obj_XYZ.cdata);
+                if ~isempty(conversion_mat)
+                    assert(all(size(conversion_mat) == [3, obj.num_channels]), ...
+                        'RGB conversion matrix must be of shape [3, %d]', obj.num_channels);
+                    mat_rgb = conversion_mat;
+                else
+                    [cie_rgb, cie_wls] = tb.cie_rgb_1931();
+                    mat_rgb = interp1(cie_wls, cie_rgb, obj.get_wavelengths(), ...
+                        'linear', 0);
+                    if isempty(mat_rgb)
+                        tmp = cellfun(@(x) ['''', x, ''', '], obj.channel_names, ...
+                            'UniformOutput', false);
+                        tmp{end} = tmp{end}(1 : end - 2);
+                        error('img:unknown_channel_names', ...
+                            'the channel names do not allow for automatic conversion to RGB: %s', ...
+                            strcat(tmp{:}));
+                    end
+                end
+                obj_out = mat_rgb * obj;
             else
                 error('img:illegal_conversion', ...
                     'Conversion from channel format %s to RGB is not possible.', ...
                     obj.channels_to_str());
             end
-            obj_out.channel_names = 'RGB';
+            obj_out.channel_names = {'R', 'G', 'B'};
         end
         
         function channel_str = channels_to_str(obj)
