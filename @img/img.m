@@ -222,6 +222,20 @@ classdef img < handle & matlab.mixin.Copyable
         end
         
 %% OPERATIONS
+        function obj = assign(obj, assignment, varargin)
+            % assign values with arbitrary indexing, useful for anonymous
+            % functions
+            obj.cdata(varargin{:}) = assignment;
+        end
+        
+        function obj = set_zero(obj)
+            obj.cdata(:) = 0;
+        end
+        
+        function set_one(obj)
+            obj.cdata(:) = 1;
+        end
+        
         function obj_out = abs(obj)
             % absolute value of the image
             obj_out = obj.copy();
