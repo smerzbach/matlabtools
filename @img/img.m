@@ -1198,6 +1198,64 @@ classdef img < handle & matlab.mixin.Copyable
             channel_str = tb.to_str(obj.channel_names);
         end
         
+        function cell_arr = to_cell(obj, dim)
+            % return cell array of slices along the specified dimension
+            assert(1 <= dim && dim <= 4, 'dim must be one of {1, 2, 3, 4}.');
+            s = obj.size4();
+            switch dim
+                case 1
+                    cell_arr = mat2cell(obj.cdata, ones(s(1), 1), s(2), s(3), s(4));
+                case 2
+                    cell_arr = mat2cell(obj.cdata, s(1), ones(s(2), 1), s(3), s(4));
+                case 3
+                    cell_arr = mat2cell(obj.cdata, s(1), s(2), ones(s(3), 1), s(4));
+                case 4
+                    cell_arr = mat2cell(obj.cdata, s(1), s(2), s(3), ones(s(4), 1));
+            end
+        end
+        
+        function imchannels = colorize_channels(obj, channel_inds, clamp_negative, conversion_mat)
+            % convert each channel's 2D array into an RGB image which is
+            % appropriately colorized
+            if ~exist('channel_inds', 'var') || isempty(channel_inds)
+                channel_inds = 1 : obj.num_channels();
+            end
+            
+            if ~exist('clamp_negative', 'var') || isempty(clamp_negative)
+                clamp_negative = false;
+            end
+            
+            if ~exist('conversion_mat', 'var') || isempty(conversion_mat)
+                conversion_mat = [];
+            end
+            
+            assert(obj.num_frames() == 1, 'not implemented for multi-frame images!');
+            imchannels = cell(1, obj.num_channels);
+            if obj.is_spectral()
+                wls = obj.get_wavelengths(channel_inds);
+                for wi = 1 : numel(wls)
+                    imc = img(obj.cdata(:, :, wi), 'wls', wls(wi));
+                    imc = imc.to_rgb(conversion_mat);
+                    if clamp_negative
+                        imc = imc.clamp(0, inf);
+                    end
+                    imchannels{wi} = imc;
+                end
+            elseif obj.is_rgb()
+                for wi = 1 : 3
+                    imc = img(zeros(obj.height, obj.width, 3, 'like', obj.cdata), 'wls', 'RGB');
+                    imc.cdata(:, :, wi) = obj.cdata(:, :, wi);
+                    if clamp_negative
+                        imc = imc.clamp(0, inf);
+                    end
+                    imchannels{wi} = imc;
+                end
+            else
+                error('img:colorize_channels', 'image must be either multispectral or RGB.');
+            end
+        end
+
+        
 %% CALLBACKS
         function add_viewer(obj, v)
             % add a new viewer object to the set of active viewers, supply
