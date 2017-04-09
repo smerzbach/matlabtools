@@ -1131,6 +1131,9 @@ classdef img < handle & matlab.mixin.Copyable
                 mat_xyz = interp1(cie_wls, cie_xyz, obj.get_wavelengths(), ...
                     'linear', 0);
                 
+                % normalize to keep the same energy
+                mat_xyz = mat_xyz ./ max(sum(mat_xyz));
+                
                 obj_out = mat_xyz * obj;
             else
                 error('img:illegal_conversion', ...
@@ -1152,9 +1155,14 @@ classdef img < handle & matlab.mixin.Copyable
                 % nothing to do
                 obj_out = obj.copy();
             elseif obj.is_XYZ()
-                % might fail for some data types
-                obj_out = obj.copy();
-                obj_out.cdata = xyz2rgb(obj.cdata);
+                if ~exist('conversion_mat', 'var') || isempty(conversion_mat)
+                    mat_rgb = tb.xyz2rgb_mat('cie');
+                elseif ischar(conversion_mat)
+                    mat_rgb = tb.xyz2rgb_mat(conversion_mat);
+                elseif isnumeric(conversion_mat)
+                    mat_rgb = conversion_mat;
+                end
+                obj_out = mat_rgb * obj;
             elseif obj.is_spectral()
                 if ~isempty(conversion_mat)
                     assert(all(size(conversion_mat) == [3, obj.num_channels]), ...
@@ -1164,6 +1172,9 @@ classdef img < handle & matlab.mixin.Copyable
                     [cie_rgb, cie_wls] = tb.cie_rgb_1931();
                     mat_rgb = interp1(cie_wls, cie_rgb, obj.get_wavelengths(), ...
                         'linear', 0);
+                    % normalize to keep the same energy
+                    mat_rgb = mat_rgb ./ max(sum(mat_rgb));
+                    
                     if isempty(mat_rgb)
                         tmp = cellfun(@(x) ['''', x, ''', '], obj.channel_names, ...
                             'UniformOutput', false);
