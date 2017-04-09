@@ -222,6 +222,12 @@ classdef img < handle & matlab.mixin.Copyable
         end
         
 %% OPERATIONS
+        function obj_out = abs(obj)
+            % absolute value of the image
+            obj_out = obj.copy();
+            obj_out.cdata = abs(obj_out.cdata);
+        end
+        
         function obj_out = plus(a, b)
             % addition of an img with another img or numeric array. if
             % sizes don't match, it is attempted to repeat the respectively
