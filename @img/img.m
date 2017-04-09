@@ -530,22 +530,18 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
+        function obj_out = clamp(obj, lower, upper)
+            % clamp image values to lower and upper bounds
+            if ~exist('lower', 'var') || isempty(lower)
+                lower = 0;
             end
             
-            if ~isa(obj, 'img')
-                % swap if min(1, im) was called
-                tmp = obj;
-                obj = comp;
-                comp = tmp;
+            if ~exist('upper', 'var') || isempty(upper)
+                upper = inf;
             end
             
             obj_out = obj.copy();
-            
-            if isempty(dim)
-                obj_out.cdata(:) = max(obj.cdata(:), comp(:));
-            else
-                obj_out.cdata(:) = max(obj.cdata, comp, dim);
-            end
+            obj_out(:, :, :, :) = tb.clamp(obj_out.cdata, lower, upper);
         end
         
 %% ACCESSORS
