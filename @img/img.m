@@ -1186,8 +1186,11 @@ classdef img < handle & matlab.mixin.Copyable
         end
         
 %% TODO 
-        function write(obj, file_path, varargin)
-            
+        function imwrite(obj, varargin)
+            % save image to disk
+            % for now, this simply calls the builtin imwrite with whatever
+            % arguments that were provided
+            imwrite(obj.cdata, varargin{:});
         end
         
         function read(obj, file_path, varargin) %#ok<INUSD>
