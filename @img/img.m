@@ -468,42 +468,68 @@ classdef img < handle & matlab.mixin.Copyable
         
         function obj_out = min(obj, varargin)
             % compute minimum element (optionally along specified dimension)
-            comp = [];
-            dim = [];
-            if numel(varargin) > 1
-                dim = varargin{2};
-            end
-            
-            if numel(varargin)
-                comp = varargin{1};
-            end
-            
             if ~isa(obj, 'img')
-                % swap if min(1, im) was called
-                tmp = obj;
-                obj = comp;
-                comp = tmp;
+                obj = img(obj);
             end
             
-            obj_out = obj.copy();
-            
-            if isempty(dim)
-                obj_out.cdata(:) = min(obj.cdata(:), comp(:));
+            if numel(varargin) == 0
+                % minimum element
+                obj_out = min(obj.cdata(:));
+            elseif numel(varargin) == 1
+                % element-wise minimum of two images
+                
+                if ~isa(varargin{1}, 'img')
+                    varargin{1} = img(varargin{1});
+                end
+                
+                if varargin{1}.bigger_than(obj)
+                    tmp = obj;
+                    obj = varargin{1};
+                    varargin{1} = tmp;
+                end
+                
+                obj_out = obj.copy();
+                obj_out.cdata(:) = min(obj.cdata(:), varargin{1}.cdata(:));
+            elseif numel(varargin) == 2 % (img, [], dim)
+                % minimum along specified dimension
+                obj_out = tb.min2(obj.cdata, varargin{:});
             else
-                obj_out.cdata(:) = min(obj.cdata, comp, dim);
+                error('img:min_arguments', 'unsupported number of inputs.');
             end
         end
         
         function obj_out = max(obj, varargin)
             % compute minimum element (optionally along specified dimension)
-            comp = [];
-            dim = [];
-            if numel(varargin) > 1
-                dim = varargin{2};
+            if ~isa(obj, 'img')
+                obj = img(obj);
             end
             
-            if numel(varargin)
-                comp = varargin{1};
+            if numel(varargin) == 0
+                % maximum element
+                obj_out = max(obj.cdata(:));
+            elseif numel(varargin) == 1
+                % element-wise maximum of two images
+                
+                if ~isa(varargin{1}, 'img')
+                    varargin{1} = img(varargin{1});
+                end
+                
+                if varargin{1}.bigger_than(obj)
+                    tmp = obj;
+                    obj = varargin{1};
+                    varargin{1} = tmp;
+                end
+                
+                obj_out = obj.copy();
+                obj_out.cdata(:) = max(obj.cdata(:), varargin{1}.cdata(:));
+            elseif numel(varargin) == 2 % (img, [], dim)
+                % maximum along specified dimension
+                obj_out = tb.max2(obj.cdata, varargin{:});
+            else
+                error('img:max_arguments', 'unsupported number of inputs.');
+            end
+        end
+        
             end
             
             if ~isa(obj, 'img')
@@ -877,6 +903,23 @@ classdef img < handle & matlab.mixin.Copyable
         
         function s = size(obj, varargin)
             s = size(obj.cdata, varargin{:});
+        end
+        
+        function res = bigger_than(obj, comp)
+            % check if a second img object has bigger dimensions
+            if ~isa(comp, 'img')
+                comp = img(comp);
+            end
+            
+            s1 = obj.size4();
+            s2 = comp.size4();
+            
+            res = 0;
+            if all(s1 >= s2)
+                res = 1;
+            elseif any(s1 > s2) && any(s1 < s2)
+                res = -1;
+            end
         end
         
         function tf = is_monochrome(obj)
