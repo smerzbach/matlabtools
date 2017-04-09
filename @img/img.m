@@ -492,7 +492,7 @@ classdef img < handle & matlab.mixin.Copyable
                         case {'num_channels', 'nc'}
                             varargout{1} = obj.num_channels();
                         case {'num_frames', 'nf'}
-                            varargout{1} = obj.height();
+                            varargout{1} = obj.num_frames();
                         case {'channel_names', 'channels'}
                             varargout{1} = obj.get_channel_names();
                         case {'wavelengths', 'wls'}
@@ -998,10 +998,11 @@ classdef img < handle & matlab.mixin.Copyable
                 % nothing to do
                 obj_out = obj.copy();
             elseif obj.is_spectral()
-                % convert multispectral image with the CIE standard
+                % convert multispectral image with the CIE XYZ standard
                 % observer curves
                 [cie_xyz, cie_wls] = tb.ciexyz();
-                mat_xyz = interp1(cie_wls, cie_xyz, obj.get_wavelengths(), 'linear', 0);
+                mat_xyz = interp1(cie_wls, cie_xyz, obj.get_wavelengths(), ...
+                    'linear', 0);
                 
                 obj_out = mat_xyz * obj;
             else
@@ -1194,9 +1195,9 @@ classdef img < handle & matlab.mixin.Copyable
                         1 : obj.width(), 1 : obj.num_channels()};
                     obj.interpolant.Values = obj.cdata;
                 end
-            elseif obj.num_channels == 1 && obj.num_frames > 1 || ...
-                        any(cellfun(@numel, obj.interpolant.GridVectors) ~= s([1, 2, 4]))
+            elseif obj.num_channels == 1 && obj.num_frames > 1
                 if isempty(obj.interpolant) || numel(obj.interpolant.GridVectors) ~= 3 || ...
+                        any(cellfun(@numel, obj.interpolant.GridVectors) ~= s([1, 2, 4])) || ...
                         any(cellfun(@numel, obj.interpolant.GridVectors) ~= s([1, 2, 4]))
                     obj.interpolant = griddedInterpolant({...
                         1 : obj.height(), ...
@@ -1210,7 +1211,7 @@ classdef img < handle & matlab.mixin.Copyable
                         obj.width(), obj.num_frames());
                 end
             else
-                if isempty(obj.interpolant) || numel(obj.interpolant.GridVector) ~= 4 || ...
+                if isempty(obj.interpolant) || numel(obj.interpolant.GridVectors) ~= 4 || ...
                         any(cellfun(@numel, obj.interpolant.GridVectors) ~= s)
                     obj.interpolant = griddedInterpolant({...
                         1 : obj.height(), ...
