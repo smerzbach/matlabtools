@@ -33,6 +33,8 @@ classdef img < handle & matlab.mixin.Copyable
         % e.g. 'RGB' or numeric values for multispectral images, can also
         % store arbitrary cell arrays of strings
         channel_names;
+        
+        name = '';
     end
     
     properties(Access = public)
@@ -40,6 +42,8 @@ classdef img < handle & matlab.mixin.Copyable
         extrapolate = false;
         interpolation_method;
         extrapolation_method;
+        
+        user; % user data
     end
     
     properties(Access = protected)
@@ -497,6 +501,8 @@ classdef img < handle & matlab.mixin.Copyable
                             varargout{1} = obj.get_channel_names();
                         case {'wavelengths', 'wls'}
                             varargout{1} = obj.get_wavelengths();
+                        case 'name'
+                            varargout{1} = obj.get_name();
                         otherwise
                             % pass all other properties to builtin
 
@@ -723,6 +729,8 @@ classdef img < handle & matlab.mixin.Copyable
                                 end
                             case {'channel_names', 'channels', 'wavelengths', 'wls'}
                                 obj.set_channel_names(assignment);
+                            case 'name'
+                                obj.set_name(assignment);
                             otherwise
                                 % pass through all other properties to
                                 % builtin
@@ -930,6 +938,16 @@ classdef img < handle & matlab.mixin.Copyable
                 ['Number of elements in the channel names', ...
                 'must match the number of image channels.']);
             obj.channel_names = channel_names;
+        end
+        
+        function name = get_name(obj)
+            % return name stored in image object
+            name = obj.name;
+        end
+        
+        function set_name(obj, name)
+            % store name in image object
+            obj.name = name;
         end
         
 %% CONVERTERS
