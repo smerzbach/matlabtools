@@ -1300,6 +1300,7 @@ classdef img < handle & matlab.mixin.Copyable
             % change listener callback updates all assigned viewer objects
             if ~isempty(obj.viewers)
                 for vi = 1 : numel(obj.viewers)
+                    obj.viewers(vi).change_image();
                     obj.viewers(vi).paint();
                 end
             end
