@@ -62,7 +62,16 @@ classdef img < handle & matlab.mixin.Copyable
                 if isnumeric(varargin{1})
                     obj.cdata = varargin{1};
                 elseif isa(varargin{1}, 'img')
-                    obj = varargin{1}.copy();
+                    % using handle.copy() here prevents subclassing img -_-
+                    % obj = varargin{1}.copy();
+                    other = varargin{1};
+                    obj.cdata = other.cdata;
+                    obj.channel_names = other.channel_names;
+                    obj.name = other.name;
+                    obj.user = other.user;
+                    obj.interpolant = other.interpolant;
+                    obj.viewers = other.viewers;
+                    obj.listener_handle = other.listener_handle;
                 else
                     error('img:construction_failed', ...
                         'cannot construct img object from class %s', class(varargin{1}));
