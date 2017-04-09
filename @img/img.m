@@ -315,6 +315,41 @@ classdef img < handle & matlab.mixin.Copyable
             obj_out.cdata = -img_net.cdata;
         end
         
+        function obj_out = times(obj, input)
+            % element-wise multiplication by scalar (element-wise), vector
+            % (pixel-wise) or matrix (channel-wise)
+            if isa(input, 'img')
+                tmp = obj;
+                obj = input;
+                input = tmp';
+            end
+            
+            if ~isa(input, 'img')
+                input = img(input);
+            end
+            
+            s = obj.size4();
+            sin = input.size4();
+            obj_out = obj.copy();
+            
+            if isscalar(input)
+                input = repmat(input, 1, 1, s(3));
+            elseif isvector(input)
+                assert(numel(input) == s(3), ...
+                    'input length must match the number of channels in the image!');
+                input = reshape(input, 1, 1, s(3));
+            elseif ismatrix(input)
+                assert(all(sin(1 : 2) == s(1 : 2)), ...
+                    'image x and y dimensions must match for element-wise multiplication with a matrix!');
+                input = repmat(input, 1, 1, s(3));
+            else
+                assert(all(sin(1 : 3) == s(1 : 3)), ...
+                    'all image dimensions must match for element-wise multiplication by a 3D array!');
+            end
+            
+            obj_out.cdata = bsxfun(@times, obj_out.cdata, input.cdata);
+        end
+        
         function obj_out = mtimes(obj, input)
             % pixel-wise matrix (or scalar) multiplication
             if isa(input, 'img')
