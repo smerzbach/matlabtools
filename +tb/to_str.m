@@ -32,6 +32,8 @@ function str = to_str(input)
         str = num2str(input);
     elseif iscell(input)
         str = cellfun(@(x) [to_str(x), ' '], input, 'UniformOutput', false);
+    elseif isa(input, 'function_handle')
+        str = func2str(input);
     else
         try
             str = string(input);
