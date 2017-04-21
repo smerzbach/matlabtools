@@ -911,8 +911,9 @@ classdef img < handle & matlab.mixin.Copyable
             num_frames = size(obj.cdata, 4);
         end
         
-        function s = size(obj, varargin)
-            s = size(obj.cdata, varargin{:});
+        function varargout = size(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = size(obj.cdata, varargin{:});
         end
         
         function res = bigger_than(obj, comp)
