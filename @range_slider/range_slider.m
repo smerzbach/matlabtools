@@ -36,6 +36,7 @@ classdef range_slider < handle
     
     properties(Access = public)
         slider;
+        slider_handle;
         container;
     end
         
@@ -77,9 +78,12 @@ classdef range_slider < handle
             p.parse(varargin{:});
             unmatched = struct2cell(p.Unmatched);
             
-            obj.slider = com.jidesoft.swing.RangeSlider(obj.default_slider_min, obj.default_slider_max, ...
+            obj.slider = com.jidesoft.swing.RangeSlider(...
+                obj.default_slider_min, obj.default_slider_max, ...
                 obj.default_slider_low, obj.default_slider_high);
-            [obj.slider, obj.container] = javacomponent(obj.slider, p.Results.Position, obj.uip);
+            obj.slider_handle = handle(obj.slider, 'CallbackProperties');
+            [obj.slider, obj.container] = javacomponent(obj.slider, ...
+                p.Results.Position, obj.uip);
             
             % properly set position
             obj.container.Units = p.Results.Units;
