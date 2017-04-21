@@ -95,6 +95,13 @@ classdef tonemapper < handle
             
             if ~isempty(obj.selected_channels)
                 im = im(:, :, obj.selected_channels);
+                if ~isempty(varargin)
+                    for ii = 1 : 2 : numel(varargin)
+                        if ischar(varargin{ii}) && strcmpi(varargin{ii}, 'rgb_mat')
+                            varargin{ii + 1} = varargin{ii + 1}(:, obj.selected_channels);
+                        end
+                    end
+                end
             end
             
             switch obj.method
@@ -162,9 +169,11 @@ classdef tonemapper < handle
                 assert(iscell(varargin), ...
                     'parameters must be specified as name-value pairs.');
                 for ii = 1 : numel(varargin)
-                    switch lower(varargin{ii})
-                        case 'rgb_mat'
-                            rgb_mat = varargin{ii + 1};
+                    if ischar(varargin{ii})
+                        switch lower(varargin{ii})
+                            case 'rgb_mat'
+                                rgb_mat = varargin{ii + 1};
+                        end
                     end
                 end
             end

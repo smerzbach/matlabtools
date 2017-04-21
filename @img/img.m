@@ -372,7 +372,7 @@ classdef img < handle & matlab.mixin.Copyable
                 % equivalent
                 tmp = obj;
                 obj = input;
-                input = tmp';
+                input = tmp;
             end
             if ~ismatrix(input)
                 error('img:mtimes_input', ...
@@ -1166,18 +1166,21 @@ classdef img < handle & matlab.mixin.Copyable
                 obj_out = mat_rgb * obj;
             elseif obj.is_spectral()
                 if ~isempty(conversion_mat)
+                    if all(size(conversion_mat) == [obj.num_channels, 3])
+                        conversion_mat = conversion_mat';
+                    end
                     assert(all(size(conversion_mat) == [3, obj.num_channels]), ...
                         'RGB conversion matrix must be of shape [3, %d]', obj.num_channels);
                     mat_rgb = conversion_mat;
                 else
                     [cie_rgb, cie_wls] = tb.cie_rgb_1931();
-                    mat_rgb = interp1(cie_wls, cie_rgb, obj.get_wavelengths(), ...
-                        'linear', 0);
+                    mat_rgb = interp1(cie_wls, cie_rgb', obj.get_wavelengths(), ...
+                        'linear', 0)';
                     % normalize to keep the same energy
-                    mat_rgb = mat_rgb ./ max(sum(mat_rgb));
+                    mat_rgb = mat_rgb ./ max(sum(mat_rgb, 2));
                     
                     if isempty(mat_rgb)
-                        tmp = cellfun(@(x) ['''', x, ''', '], obj.channel_names, ...
+                        tmp = cellfun(@(x) ['''', num2str(x), ''', '], obj.channel_names, ...
                             'UniformOutput', false);
                         tmp{end} = tmp{end}(1 : end - 2);
                         error('img:unknown_channel_names', ...
