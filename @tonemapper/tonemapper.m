@@ -155,6 +155,32 @@ classdef tonemapper < handle
             end
             obj.hist_widget.update(im);
         end
+        
+        function select_channels(obj, selection)
+            assert(isnumeric(selection) && (isempty(selection) || ...
+                1 <= min(selection) && max(selection) <= obj.image.num_channels), ...
+                'channel selection must be array of indices into the image''s channels.');
+            obj.selected_channels = sort(selection(:));
+            % ensure channel selection agrees with the channels of the new
+            % image
+            if ~isempty(obj.selected_channels)
+                obj.selected_channels(obj.selected_channels > obj.image.nc) = [];
+            end
+            
+            % update UI
+            obj.ui.lb_channels.Value = obj.selected_channels;
+        end
+        
+        function selection = get_selected_channels(obj)
+            selection = 1;
+            if isempty(obj.selected_channels)
+                if ~isempty(obj.image)
+                    selection = 1 : obj.image.num_channels;
+                end
+            else
+                selection = obj.selected_channels;
+            end
+        end
     end
     
     methods(Access = protected)
