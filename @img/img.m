@@ -1259,7 +1259,6 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
 
-        
 %% CALLBACKS
         function add_viewer(obj, v)
             % add a new viewer object to the set of active viewers, supply
@@ -1422,7 +1421,6 @@ classdef img < handle & matlab.mixin.Copyable
                 end
             elseif obj.num_channels == 1 && obj.num_frames > 1
                 if isempty(obj.interpolant) || numel(obj.interpolant.GridVectors) ~= 3 || ...
-                        any(cellfun(@numel, obj.interpolant.GridVectors) ~= s([1, 2, 4])) || ...
                         any(cellfun(@numel, obj.interpolant.GridVectors) ~= s([1, 2, 4]))
                     obj.interpolant = griddedInterpolant({...
                         1 : obj.height(), ...

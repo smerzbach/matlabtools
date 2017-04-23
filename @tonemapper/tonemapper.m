@@ -124,6 +124,11 @@ classdef tonemapper < handle
             
             obj.parent = parent;
             
+            if ~isa(obj.parent, 'matlab.ui.container.Panel')
+                obj.parent = uipanel('Parent', obj.parent);
+            end
+            obj.parent.Title = 'Tonemapping';
+            
             obj.ui_layout();
             obj.ui_initialize();
             handles = obj.ui;
