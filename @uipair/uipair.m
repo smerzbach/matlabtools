@@ -39,7 +39,7 @@ classdef uipair < handle
     end
     
     methods
-        function obj = uipair(parent, fn1, params1, fn2, params2, orientation)
+        function obj = uipair(parent, orientation, fn1, params1, fn2, params2)
             % construct a uipair by specifying the parent handle, the
             % functions to call (either uipanel or uicontrol) and the
             % parameters to pass to these functions as a cell array of name
