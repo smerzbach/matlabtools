@@ -42,9 +42,9 @@ classdef jslider < handle
         
     properties(Access = protected)
         uip;
-        value;
-        minimum;
-        maximum;
+        value = 0.5;
+        minimum = 0;
+        maximum = 1;
         resolution;
         continuous;
         
@@ -251,7 +251,11 @@ classdef jslider < handle
             end
             obj.value = obj.slider_to_real(src.Value);
             
-            obj.callback_changed(obj.value);
+            if iscell(obj.callback_changed)
+                obj.callback_changed{1}(obj.value, obj.callback_changed{2 : end})
+            else
+                obj.callback_changed(obj.value);
+            end
         end
         
         function default_callback_changed(obj, value)
