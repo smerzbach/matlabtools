@@ -33,7 +33,8 @@ classdef tonemapper < handle
         method = 'simple';
         
         clamp = true; % clamp to [0, 1] after mapping
-        
+        raw_mode = false; % for single channel selection of spectral images,
+        % tonemap channel as monochrome image instead of conversion to RGB
         hist_widget;
     end
     
@@ -172,6 +173,8 @@ classdef tonemapper < handle
                 obj.selected_channels(obj.selected_channels > obj.image.nc) = [];
             end
             
+            obj.hist_widget.update(obj.image(:, :, obj.selected_channels));
+            
             % update UI
             obj.ui.lb_channels.Value = obj.selected_channels;
         end
@@ -210,7 +213,7 @@ classdef tonemapper < handle
             end
             
             % deal with channel numbers ~= 3
-            if im.is_monochrome()
+            if im.nc == 1 && obj.raw_mode || im.is_monochrome()
                 im = repmat(im, 1, 1, 3);
             elseif im.is_spectral()
                 if exist('rgb_mat', 'var')
@@ -247,7 +250,7 @@ classdef tonemapper < handle
             % middle part of UI (channel selection)
             obj.ui.l1_mid = uigridcontainer('v0', 'Parent', obj.ui.l0, ...
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
-                'GridSize', [1, 1]);
+                'GridSize', [2, 1]);
             
             % bottom part of UI (histogram widget)
             obj.ui.l1_bot = uipanel('Parent', obj.ui.l0, ...
@@ -302,6 +305,10 @@ classdef tonemapper < handle
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
                 'FontSize', 6);
+            obj.ui.cb_raw_mode = uicontrol(obj.ui.l1_mid, 'Units', 'normalized', ...
+                'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', obj.raw_mode, ...
+                'String', 'raw mode', 'Callback', @obj.callback_ui);
+            obj.ui.l1_mid.VerticalWeight = [0.9, 0.1];
             obj.populate_channel_list();
             
             % create histogram widget
@@ -335,18 +342,21 @@ classdef tonemapper < handle
         
         function callback_ui(obj, src, evnt) %#ok<INUSD>
             if src == obj.ui.edit_scale
+                % scale
                 try
                     obj.scale = str2double(src.String);
                 catch
                     src.String = num2str(obj.scale);
                 end
             elseif src == obj.ui.edit_offset
+                % offset
                 try
                     obj.offset = str2double(src.String);
                 catch
                     src.String = num2str(obj.offset);
                 end
             elseif src == obj.ui.edit_gamma
+                % gamma
                 try
                     obj.gamma = str2double(src.String);
                 catch
@@ -355,7 +365,19 @@ classdef tonemapper < handle
             elseif src == obj.ui.popup_method
                 % TODO
             elseif src == obj.ui.lb_channels
+                % channels
                 obj.selected_channels = src.Value;
+                
+                obj.hist_widget.update(obj.image(:, :, obj.selected_channels));
+                
+                if numel(obj.selected_channels) == 1
+                    obj.ui.cb_raw_mode.Enable = 'on';
+                else
+                    obj.ui.cb_raw_mode.Enable = 'off';
+                end
+            elseif src == obj.ui.cb_raw_mode
+                % raw mode
+                obj.raw_mode = src.Value;
             end
             
             if ~isempty(obj.callback)

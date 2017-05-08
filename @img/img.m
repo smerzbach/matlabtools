@@ -357,8 +357,8 @@ classdef img < handle & matlab.mixin.Copyable
                     'image x and y dimensions must match for element-wise multiplication with a matrix!');
                 input = repmat(input, 1, 1, s(3));
             else
-                assert(all(sin(1 : 3) == s(1 : 3)), ...
-                    'all image dimensions must match for element-wise multiplication by a 3D array!');
+%                 assert(all(sin(1 : 3) == s(1 : 3)), ...
+%                     'all image dimensions must match for element-wise multiplication by a 3D array!');
             end
             
             obj_out.cdata = bsxfun(@times, obj_out.cdata, input.cdata);
