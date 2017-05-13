@@ -112,7 +112,7 @@ classdef uipair < handle
             % specific order.
             
             % extract style argument
-            style_ind = find(cellfun(@(x) strcmpi(x, 'Style'), params));
+            style_ind = find(cellfun(@(x) strcmpi(x, 'Style'), params(1 : 2 : end))) * 2 - 1;
             if ~isempty(style_ind)
                 style = params{style_ind + 1};
             else
@@ -120,7 +120,7 @@ classdef uipair < handle
             end
             
             % extract units argument
-            units_ind = find(cellfun(@(x) strcmpi(x, 'Units'), params));
+            units_ind = find(cellfun(@(x) strcmpi(x, 'Units'), params(1 : 2 : end))) * 2 - 1;
             if ~isempty(units_ind)
                 units = params{units_ind + 1};
             else
@@ -128,7 +128,7 @@ classdef uipair < handle
             end
             
             % extract position argument
-            pos_ind = find(cellfun(@(x) strcmpi(x, 'Position'), params));
+            pos_ind = find(cellfun(@(x) strcmpi(x, 'Position'), params(1 : 2 : end))) * 2 + 1;
             if ~isempty(pos_ind)
                 position = params{pos_ind + 1};
             else
