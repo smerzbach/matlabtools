@@ -248,7 +248,9 @@ classdef tonemapper < handle
                 'GridSize', [4, 2]);
             
             % middle part of UI (channel selection)
-            obj.ui.l1_mid = uigridcontainer('v0', 'Parent', obj.ui.l0, ...
+            obj.ui.uip_channels = uipanel(obj.ui.l0, 'Units', 'normalized', ...
+                'Position', [0, 0, 1, 1], 'Title', 'Channels');
+            obj.ui.l1_channels = uigridcontainer('v0', 'Parent', obj.ui.uip_channels, ...
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
                 'GridSize', [2, 1]);
             
@@ -299,16 +301,20 @@ classdef tonemapper < handle
                 'style', 'edit', 'String', num2str(obj.gamma), ...
                 'Callback', @obj.callback_ui);
             
-            % create channel list
-            obj.ui.uip_channels = uipanel(obj.ui.l1_mid, 'Title', 'Channels');
-            obj.ui.lb_channels = uicontrol('Parent', obj.ui.uip_channels, ...
+            % channels
+            obj.ui.l2_channels = uigridcontainer('v0', 'Parent', obj.ui.l1_channels, ...
+                'Units', 'normalized', 'Position', [0, 0, 1, 1], 'GridSize', [1, 2]);
+            obj.ui.lb_channels = uicontrol('Parent', obj.ui.l1_channels, ...
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
                 'FontSize', 6);
-            obj.ui.cb_raw_mode = uicontrol(obj.ui.l1_mid, 'Units', 'normalized', ...
+            obj.ui.pb_select_all = uicontrol(obj.ui.l2_channels, 'Units', 'normalized', ...
+                'Position', [0, 0, 1, 1], 'Style', 'pushbutton', ...
+                'String', 'select all', 'Callback', @obj.callback_ui);
+            obj.ui.cb_raw_mode = uicontrol(obj.ui.l2_channels, 'Units', 'normalized', ...
                 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', obj.raw_mode, ...
                 'String', 'raw mode', 'Callback', @obj.callback_ui);
-            obj.ui.l1_mid.VerticalWeight = [0.9, 0.1];
+            obj.ui.l1_channels.VerticalWeight = [0.1, 0.9];
             obj.populate_channel_list();
             
             % create histogram widget
@@ -369,6 +375,16 @@ classdef tonemapper < handle
                 obj.selected_channels = src.Value;
                 
                 obj.hist_widget.update(obj.image(:, :, obj.selected_channels));
+                
+                if numel(obj.selected_channels) == 1
+                    obj.ui.cb_raw_mode.Enable = 'on';
+                else
+                    obj.ui.cb_raw_mode.Enable = 'off';
+                end
+            elseif src == obj.ui.pb_select_all
+                obj.selected_channels = 1 : obj.image.nc;
+                obj.hist_widget.update(obj.image(:, :, obj.selected_channels));
+                obj.ui.lb_channels.Value = obj.selected_channels;
                 
                 if numel(obj.selected_channels) == 1
                     obj.ui.cb_raw_mode.Enable = 'on';
