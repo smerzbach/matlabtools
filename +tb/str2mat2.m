@@ -24,7 +24,7 @@
 % *************************************************************************
 % 
 % Given a string representation of a 2D array, this functio attempts to
-% parse and return the numeric array. This function can be seen as acting
+% parse and return a numeric array. This function can be seen as acting
 % inversely to what mat2str() does.
 %
 % Test this with e.g. 
@@ -86,3 +86,4 @@ function [mat, e] = str2mat2(str)
         e = sum(abs(str_orig(:) - mat(:)));
     end
 end
+
