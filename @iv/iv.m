@@ -261,6 +261,7 @@ classdef iv < handle
             obj.selected_image = value;
             obj.ui.lb_images.Value = value;
             obj.change_image();
+            obj.paint();
         end
         
         function callback_slider_frames(obj, value)
@@ -282,6 +283,7 @@ classdef iv < handle
                 obj.selected_image = src.Value;
                 obj.ui.slider_images.set_value(obj.selected_image(1));
                 obj.change_image();
+                obj.paint();
             elseif src == obj.ui.popup_comparison_method
                 method = src.String{src.Value};
                 switch method
