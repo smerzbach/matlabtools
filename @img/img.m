@@ -1172,11 +1172,19 @@ classdef img < handle & matlab.mixin.Copyable
                     assert(all(size(conversion_mat) == [3, obj.num_channels]), ...
                         'RGB conversion matrix must be of shape [3, %d]', obj.num_channels);
                     mat_rgb = conversion_mat;
+                    
+                    % normalize to keep the same energy
+                    % TODO: this is not the right way to do this. instead
+                    % one should account for the differential wavelengths
+                    mat_rgb = mat_rgb ./ max(sum(mat_rgb, 2));
                 else
                     [cie_rgb, cie_wls] = tb.cie_rgb_1931();
                     mat_rgb = interp1(cie_wls, cie_rgb', obj.get_wavelengths(), ...
                         'linear', 0)';
+                    
                     % normalize to keep the same energy
+                    % TODO: this is not the right way to do this. instead
+                    % one should account for the differential wavelengths
                     mat_rgb = mat_rgb ./ max(sum(mat_rgb, 2));
                     
                     if isempty(mat_rgb)
