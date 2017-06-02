@@ -24,6 +24,9 @@
 % *************************************************************************
 % 
 % Image class.
+%
+% TODO: how to handle multispectral images that additionally store channels
+% with non-numerical names?
 classdef img < handle & matlab.mixin.Copyable
     properties(GetAccess = public, SetAccess = protected, SetObservable, AbortSet)
         cdata; % stores the actual pixel values as a 2D, 3D or 4D array
@@ -99,9 +102,6 @@ classdef img < handle & matlab.mixin.Copyable
                             ['Number of elements in the channel names argument ', ...
                             'must match the number of channels.']);
                         obj.set_channel_names(channel_names);
-                        if obj.is_spectral()
-                            obj.set_channel_names(num2cell(obj.get_wavelengths()));
-                        end
                     otherwise
                         error('img:unknown_param', 'Unknown parameter %s.', varargin{ii});
                 end
