@@ -767,6 +767,15 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
+        function output = lerp(obj, varargin)
+            s = obj.size4();
+            dims_missing = 4 - numel(varargin);
+            subs = [varargin, cellfun(@(x) 1 : x, ...
+                num2cell(s(end - dims_missing + 1 : end)), ...
+                'UniformOutput', false)];
+            output = obj.interp(subs{:});
+        end
+        
         function obj = subsasgn(obj, S, assignment)
             % Subscripted assignment via '()', '{}' or '.' for property
             % access.
@@ -889,6 +898,8 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
+        
+        
         function obj_out = reshape(obj, varargin)
             % reshape the underlying array
             obj_out = obj.copy();
@@ -912,7 +923,7 @@ classdef img < handle & matlab.mixin.Copyable
         end
         
         function varargout = size(obj, varargin)
-            varargout = cell(1, nargout);
+            varargout = cell(1, max(1, nargout));
             [varargout{:}] = size(obj.cdata, varargin{:});
         end
         
@@ -1383,16 +1394,22 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
-        function values = interp(obj, xs, ys, channels, frames)
+        function values = interp(obj, ys, xs, channels, frames)
             % multi-linear interpolation on the image data
             obj.update_interpolant();
             
             [ys, xs, channels, frames] = obj.char_subs_to_linds(ys, xs, channels, frames);
             
             if obj.num_channels == 1 && obj.num_frames == 1
-                values = obj.interpolant({ys, xs});
+                values = obj.interpolant(ys, xs);
             elseif obj.num_channels > 1 && obj.num_frames == 1
-                values = obj.interpolant({ys, xs, channels});
+                nx = numel(xs);
+                nc = numel(channels);
+                ys = repmat(ys, 1, numel(channels));
+                xs = repmat(xs, 1, numel(channels));
+                channels = repmat(channels(:)', nx, 1);
+                values = obj.interpolant(ys(:), xs(:), channels(:));
+                values = reshape(values, [], nc)';
             elseif obj.num_channels == 1 && obj.num_frames > 1
                 values = obj.interpolant({ys, xs, frames});
             else
