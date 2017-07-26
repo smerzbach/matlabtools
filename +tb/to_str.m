@@ -31,7 +31,8 @@ function str = to_str(input)
     elseif isnumeric(input)
         str = num2str(input);
     elseif iscell(input)
-        str = cellfun(@(x) [to_str(x), ' '], input, 'UniformOutput', false);
+        str = cellfun(@(x) [tb.to_str(x), ' '], input, 'UniformOutput', false);
+        str = strcat(str{:});
     elseif isa(input, 'function_handle')
         str = func2str(input);
     else

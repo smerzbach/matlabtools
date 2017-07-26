@@ -51,7 +51,8 @@ function [mat, e] = str2mat2(str)
     if isnumeric(str)
         str = mat2str(str);
     end
-    
+
+    str = strrep(str, sprintf('\n'), ';');
     str = strrep(str, '[', '');
     str = strrep(str, ']', '');
     str = strrep(str, ',', ' ');
