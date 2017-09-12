@@ -189,6 +189,30 @@ classdef tonemapper < handle
                 selection = obj.selected_channels;
             end
         end
+        
+        function setScale(obj, scale)
+            obj.scale = scale;
+            obj.ui.edit_scale.String = num2str(scale);
+            if ~isempty(obj.callback)
+                obj.callback();
+            end
+        end
+        
+        function setGamma(obj, gamma)
+            obj.gamma = gamma;
+            obj.ui.edit_gamma.String = num2str(gamma);
+            if ~isempty(obj.callback)
+                obj.callback();
+            end
+        end
+        
+        function setOffset(obj, offset)
+            obj.offset = offset;
+            obj.ui.edit_offset.String = num2str(offset);
+            if ~isempty(obj.callback)
+                obj.callback();
+            end
+        end
     end
     
     methods(Access = protected)

@@ -74,6 +74,8 @@ classdef iv < handle
                 tb.get_parent(parent);
             
             obj.parent_handle.SizeChangedFcn = @obj.callback_resize;
+            obj.figure_handle.WindowScrollWheelFcn = @obj.callback_scroll;
+            
             
             obj.ui_layout();
             obj.ui_initialize();
@@ -163,6 +165,22 @@ classdef iv < handle
         function n = ni(obj)
             % return the total number of images
             n = numel(obj.images);
+        end
+        
+        function axes_handle = getAxes(obj)
+            axes_handle = obj.axes_handle;
+        end
+        
+        function figure_handle = getFigure(obj)
+            figure_handle = obj.figure_handle;
+        end
+        
+        function parent_handle = getParent(obj)
+            parent_handle = obj.parent_handle;
+        end
+        
+        function image_handle = getImageHandle(obj)
+            image_handle = obj.image_handle;
         end
     end
     
@@ -324,6 +342,19 @@ classdef iv < handle
                     obj.ui.slider_frames.set_orientation('horizontal');
                     obj.ui.container_frames.WidthLimits = [2, inf];
                     obj.ui.container_frames.HeightLimits = [40, 40];
+                end
+            end
+        end
+        
+        function callback_scroll(obj, src, evnt)
+            sc = evnt.VerticalScrollCount;
+            if utils.in_axis(obj.figure_handle, obj.axes_handle)
+                if sc < 0
+                    % wheel up
+                    obj.tonemapper.setScale(obj.tonemapper.scale * 1.1 ^ -sc);
+                else
+                    % wheel down
+                    obj.tonemapper.setScale(obj.tonemapper.scale / 1.1 ^ sc);
                 end
             end
         end
