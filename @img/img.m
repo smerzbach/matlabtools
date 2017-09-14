@@ -838,18 +838,12 @@ classdef img < handle & matlab.mixin.Copyable
                                 
                                 % take property attributes into account!
                                 prop = obj.findprop(S(1).subs);
-                                if strcmp(prop.SetAccess, 'public')
+                                if strcmp(prop.SetAccess, 'public') || strcmp(S(1).subs, 'cdata')
                                     obj = builtin('subsasgn', obj, S, assignment);
                                 else
                                     % customize some error messages
-                                    if strcmp(S(1).subs, 'cdata')
-                                        error('img:cdata_private', ...
-                                            ['setting cdata is not allowed. ', ...
-                                            'use ''obj(:, :, :, :) = array;'' instead.']);
-                                    else
-                                        error('img:property_private', ...
-                                            'setting ''%s'' is not allowed.', S(1).subs);
-                                    end
+                                    error('img:property_private', ...
+                                        'setting ''%s'' is not allowed.', S(1).subs);
                                 end
                         end
                     else
