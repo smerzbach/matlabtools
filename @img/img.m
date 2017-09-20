@@ -1271,6 +1271,21 @@ classdef img < handle & matlab.mixin.Copyable
                 error('img:colorize_channels', 'image must be either multispectral or RGB.');
             end
         end
+        
+        function obj = storeUserData(obj, input)
+            % store user data in the .user field
+            if isstruct(input)
+                if ~isstruct(obj.user)
+                    obj.user = struct();
+                end
+                fns = fieldnames(input);
+                for fi = 1 : numel(fns)
+                    obj.user.(fns{fi}) = input.(fns{fi});
+                end
+            else
+                obj.user = input;
+            end
+        end
 
 %% CALLBACKS
         function add_viewer(obj, v)
