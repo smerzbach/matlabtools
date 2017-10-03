@@ -225,7 +225,12 @@ classdef img < handle & matlab.mixin.Copyable
         function obj = assign(obj, assignment, varargin)
             % assign values with arbitrary indexing, useful for anonymous
             % functions
-            obj.cdata(varargin{:}) = assignment;
+            if numel(varargin) > 0
+                obj.cdata(varargin{:}) = assignment;
+            else
+                obj.cdata = []; % wtf? why is this necessary?
+                obj.cdata = assignment;
+            end
         end
         
         function obj = set_zero(obj)
