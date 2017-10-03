@@ -192,6 +192,11 @@ classdef range_slider < handle
         end
         
         function callback_internal(obj, src, evnt, varargin)
+            if on_stack()
+                % prevent re-entrancy
+                return;
+            end
+            
             if isa(evnt, 'java.awt.event.MouseWheelEvent')
                 if evnt.getWheelRotation() > 0
                     src.Minimum = src.Minimum - obj.range_internal() / 100;

@@ -242,6 +242,11 @@ classdef jslider < handle
         end
         
         function callback_internal(obj, src, evnt, varargin)
+            if on_stack()
+                % prevent re-entrancy
+                return;
+            end
+            
             if isa(evnt, 'java.awt.event.MouseWheelEvent')
                 if evnt.getWheelRotation() > 0
                     src.setValue(src.Value + 1);
@@ -250,7 +255,7 @@ classdef jslider < handle
                 end
             end
             obj.value = obj.slider_to_real(src.Value);
-            
+
             if iscell(obj.callback_changed)
                 obj.callback_changed{1}(obj.value, obj.callback_changed{2 : end})
             else
