@@ -59,7 +59,7 @@ classdef jslider < handle
                 parent = figure();
             end
             
-            obj.uip = uigridcontainer('v0', 'Parent', parent);
+            obj.uip = uipanel('Parent', parent, 'BorderWidth', 0);
             obj.uip.Units = 'pixels';
             slider_position = obj.uip.Position;
             obj.uip.Units = 'normalized';

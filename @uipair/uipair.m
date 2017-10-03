@@ -74,14 +74,15 @@ classdef uipair < handle
                 obj.h2 = uipair.create_ui(fn2, obj.h1, params2);
             else
                 % grid with two uicontrols
-                if strcmpi(orientation, 'horizontal')
-                    gs = [1, 2];
-                else
-                    gs = [2, 1];
-                end
-                obj.grid = uigridcontainer('v0', parent, 'GridSize', gs);
+                obj.grid = uix.Grid('Parent', parent);
                 obj.h1 = uipair.create_ui(fn1, obj.grid, params1);
                 obj.h2 = uipair.create_ui(fn2, obj.grid, params2);
+                
+                if strcmpi(orientation, 'horizontal')
+                    obj.grid.Widths = [-1, -2];
+                else
+                    obj.grid.Heights = [-2, -1];
+                end
             end
         end
     end

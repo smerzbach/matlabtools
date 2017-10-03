@@ -74,6 +74,7 @@ classdef hist_widget < handle
             
             obj.ui_layout();
             obj.ui_initialize();
+            obj.ui_layout_finalize();
         end
         
         function update(obj, varargin)
@@ -100,14 +101,18 @@ classdef hist_widget < handle
     methods(Access = protected)
         function ui_layout(obj)
             if strcmpi(obj.orientation, 'horizontal')
-                grid_size = [2, 1];
+                obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
             else
-                grid_size = [1, 2];
+                obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent);
             end
-
-            obj.ui.l0 = uigridcontainer('v0', 'Parent', obj.parent, ...
-                'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
-                'GridSize', grid_size, 'SizeChangedFcn', @obj.callback_resize);
+        end
+        
+        function ui_layout_finalize(obj)
+            if strcmpi(obj.orientation, 'horizontal')
+                obj.ui.l0.Heights = [-1, 75];
+            else
+                obj.ui.l0.Widths = [75, -1];
+            end
         end
         
         function ui_initialize(obj)
@@ -135,11 +140,6 @@ classdef hist_widget < handle
                 obj.ui.axes.XDir = 'reverse';
                 hold(obj.ui.axes, 'on');
             end
-            obj.ui.l0.HorizontalWeight = [1, 1];
-        end
-        
-        function callback_resize(obj, src, evnt)
-            
         end
         
         function callback_range_slider(obj, lower, upper)

@@ -132,6 +132,7 @@ classdef tonemapper < handle
             
             obj.ui_layout();
             obj.ui_initialize();
+            obj.ui_layout_finalize();
             handles = obj.ui;
         end
         
@@ -262,25 +263,26 @@ classdef tonemapper < handle
         
         function ui_layout(obj)
             % set up gui layout
-            obj.ui.l0 = uigridcontainer('v0', 'Parent', obj.parent', ...
-                'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
-                'GridSize', [3, 1], 'SizeChangedFcn', @obj.callback_resize);
+            obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
             
             % top part of UI (scale, offset, ...)
-            obj.ui.l1_top = uigridcontainer('v0', 'Parent', obj.ui.l0, ...
-                'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
-                'GridSize', [4, 2]);
+            obj.ui.l1_top = uix.Grid('Parent', obj.ui.l0, 'Spacing', 2);
             
             % middle part of UI (channel selection)
             obj.ui.uip_channels = uipanel(obj.ui.l0, 'Units', 'normalized', ...
                 'Position', [0, 0, 1, 1], 'Title', 'Channels');
-            obj.ui.l1_channels = uigridcontainer('v0', 'Parent', obj.ui.uip_channels, ...
-                'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
-                'GridSize', [2, 1]);
+            obj.ui.l1_channels = uix.VBox('Parent', obj.ui.uip_channels);
             
             % bottom part of UI (histogram widget)
             obj.ui.l1_bot = uipanel('Parent', obj.ui.l0, ...
                 'Units', 'normalized', 'Position', [0, 0, 1, 1]);
+        end
+        
+        function ui_layout_finalize(obj)
+            % finish setting up layout
+            obj.ui.l0.Heights = [4 * 24, -1, -1];
+            obj.ui.l1_top.Widths = [75, -1];
+            obj.ui.l1_channels.Heights = [24, -1];
         end
         
         function ui_initialize(obj)
@@ -297,37 +299,38 @@ classdef tonemapper < handle
             obj.ui.label_method = uicontrol('Parent', obj.ui.l1_top, ...
                 'style', 'text', 'String', 'method', ...
                 'HorizontalAlignment', 'right');
-            obj.ui.popup_method = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'popupmenu', 'String', {'simple'}, ...
-                'Value', 1, 'Callback', @obj.callback_ui);
-            
             % scale
             obj.ui.label_scale = uicontrol('Parent', obj.ui.l1_top, ...
                 'style', 'text', 'String', 'scale', ...
                 'HorizontalAlignment', 'right');
-            obj.ui.edit_scale = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'edit', 'String', num2str(obj.scale), ...
-                'Callback', @obj.callback_ui);
-            
             % offset
             obj.ui.label_offset = uicontrol('Parent', obj.ui.l1_top, ...
                 'style', 'text', 'String', 'offset', ...
                 'HorizontalAlignment', 'right');
-            obj.ui.edit_offset = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'edit', 'String', num2str(obj.offset), ...
-                'Callback', @obj.callback_ui);
-            
             % gamma
             obj.ui.label_gamma = uicontrol('Parent', obj.ui.l1_top, ...
                 'style', 'text', 'String', 'gamma', ...
                 'HorizontalAlignment', 'right');
+            
+            % method
+            obj.ui.popup_method = uicontrol('Parent', obj.ui.l1_top, ...
+                'style', 'popupmenu', 'String', {'simple'}, ...
+                'Value', 1, 'Callback', @obj.callback_ui);
+            % scale
+            obj.ui.edit_scale = uicontrol('Parent', obj.ui.l1_top, ...
+                'style', 'edit', 'String', num2str(obj.scale), ...
+                'Callback', @obj.callback_ui);
+            % offset
+            obj.ui.edit_offset = uicontrol('Parent', obj.ui.l1_top, ...
+                'style', 'edit', 'String', num2str(obj.offset), ...
+                'Callback', @obj.callback_ui);
+            % gamma
             obj.ui.edit_gamma = uicontrol('Parent', obj.ui.l1_top, ...
                 'style', 'edit', 'String', num2str(obj.gamma), ...
                 'Callback', @obj.callback_ui);
             
             % channels
-            obj.ui.l2_channels = uigridcontainer('v0', 'Parent', obj.ui.l1_channels, ...
-                'Units', 'normalized', 'Position', [0, 0, 1, 1], 'GridSize', [1, 2]);
+            obj.ui.l2_channels = uix.HBox('Parent', obj.ui.l1_channels);
             obj.ui.lb_channels = uicontrol('Parent', obj.ui.l1_channels, ...
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
@@ -338,7 +341,6 @@ classdef tonemapper < handle
             obj.ui.cb_raw_mode = uicontrol(obj.ui.l2_channels, 'Units', 'normalized', ...
                 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', obj.raw_mode, ...
                 'String', 'raw mode', 'Callback', @obj.callback_ui);
-            obj.ui.l1_channels.VerticalWeight = [0.1, 0.9];
             obj.populate_channel_list();
             
             % create histogram widget
@@ -347,7 +349,6 @@ classdef tonemapper < handle
                 'callback', @obj.callback_hist_widget); %#ok<CPROP>
             
             obj.init_done = true;
-            obj.callback_resize();
         end
         
         function populate_channel_list(obj)
@@ -422,34 +423,6 @@ classdef tonemapper < handle
             
             if ~isempty(obj.callback)
                 obj.callback();
-            end
-        end
-        
-        function callback_resize(obj, src, evnt) %#ok<INUSD>
-            % gui layout
-            if obj.init_done
-                % set up l0 weights
-                units = obj.ui.l0.Units;
-                obj.ui.l0.Units = 'pixels';
-                pos = obj.ui.l0.Position;
-                obj.ui.l0.Units = units;
-                
-                h = pos(4);
-                h1 = 20 * 4 + 5 * obj.ui.l1_top.Margin + 1 * obj.ui.l0.Margin;
-                h2 = max(1, (h - h1) / 2);
-                h3 = max(1, (h - h1 - h2));
-                obj.ui.l0.VerticalWeight = [h1, h2, h3];
-                
-                units = obj.ui.l1_top.Units;
-                obj.ui.l1_top.Units = 'pixels';
-                pos = obj.ui.l1_top.Position;
-                obj.ui.l1_top.Units = units;
-                
-                w = pos(3) - 3 * obj.ui.l0.Margin;
-                h = pos(4) - 6 * obj.ui.l0.Margin;
-                
-                obj.ui.l1_top.HorizontalWeight = [60, max(1, w - 60)];
-                obj.ui.l1_top.VerticalWeight = [20, 20, 20, 20];
             end
         end
     end

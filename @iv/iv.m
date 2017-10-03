@@ -40,6 +40,7 @@ classdef iv < handle
     end
     
     properties(Constant)
+        slider_height = 65;
         left_width = 200;
     end
     
@@ -50,7 +51,7 @@ classdef iv < handle
                     varargin{1} = cellfun(@(x) img(x), varargin{1}, ...
                         'UniformOutput', false);
                 end
-                varargin = [varargin{1}(:), varargin(2 : end)];
+                varargin = [varargin{1}(:)', varargin(2 : end)];
             elseif all(cellfun(@isnumeric, varargin))
                 varargin = cellfun(@(x) img(x), varargin, 'UniformOutput', false);
             end
@@ -73,7 +74,6 @@ classdef iv < handle
             [obj.figure_handle, obj.parent_handle, obj.axes_handle] = ...
                 tb.get_parent(parent);
             
-            obj.parent_handle.SizeChangedFcn = @obj.callback_resize;
             obj.figure_handle.WindowScrollWheelFcn = @obj.callback_scroll;
             
             
@@ -81,9 +81,9 @@ classdef iv < handle
             obj.ui_initialize();
             
             obj.tonemapper = tonemapper('callback', @obj.paint);
-            obj.tonemapper.create_ui(obj.ui.l3_left_tab_tm);
+            obj.tonemapper.create_ui(obj.ui.l1_left_tab_tm);
             
-            obj.callback_resize();
+            obj.ui_layout_finalize();
             obj.axes_handle.Position = [0, 0, 1, 1];
             
             % ensure that all listeners are removed after the object is
@@ -156,6 +156,11 @@ classdef iv < handle
             im = obj.images{obj.selected_image}(:, :, :, obj.selected_frame);
         end
         
+        function selection = get_selection(obj, inds) %#ok<INUSD>
+            inds = default('inds', 1);
+            selection = obj.selected_image(inds);
+        end
+        
         function n = nf(obj)
             % return the total number of frames in the currently selected
             % img object
@@ -182,77 +187,91 @@ classdef iv < handle
         function image_handle = getImageHandle(obj)
             image_handle = obj.image_handle;
         end
+        
+        function rgb = tonemap(obj, im)
+            rgb = obj.tonemapper.tonemap(im);
+        end
     end
     
     methods(Access = protected)
         function ui_layout(obj)
-            obj.ui.l0 = uigridcontainer('v0', 'Parent', obj.parent_handle, ...
-                'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
-                'GridSize', [1, 2]);
-            obj.ui.l1_left = uiflowcontainer('v0', 'Parent', obj.ui.l0);
-            obj.ui.l2_left_tabs = uitabgroup(obj.ui.l1_left, 'TabLocation', 'top');
-            obj.ui.l3_left_tab_tm = uitab(obj.ui.l2_left_tabs, 'Title', 'Tonemapping');
-            obj.ui.l3_left_tab_is = uitab(obj.ui.l2_left_tabs, 'Title', 'Selection');
-            obj.ui.l4_left_grid_is = uigridcontainer('v0', ...
-                'Parent', obj.ui.l3_left_tab_is, 'Units', 'normalized', ...
-                'Position', [0, 0, 1, 1], 'GridSize', [2, 1]);
-            obj.ui.l1_right = uiflowcontainer('v0', 'Parent', obj.ui.l0);
+            obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent_handle);
+            obj.ui.l1_left_tabs = uix.TabPanel('Parent', obj.ui.l0);
+            obj.ui.l1_left_tab_tm = uipanel(obj.ui.l1_left_tabs, 'Title', 'Tonemapping');
+            obj.ui.l2_left_grid_is = uix.VBox('Parent', obj.ui.l1_left_tabs);
+            obj.ui.uip_selection = uipanel('Parent', obj.ui.l2_left_grid_is, ...
+                'Title', 'Selection');
+            obj.ui.uip_comparison = uipanel('Parent', obj.ui.l2_left_grid_is, ...
+                'Title', 'Comparison', 'Visible', 'off');
+            obj.ui.l3_comparison = uix.Grid('Parent', obj.ui.uip_comparison);
+            obj.ui.l1_right = uix.VBox('Parent', obj.ui.l0);
+        end
+        
+        function ui_layout_finalize(obj)
+            % hide sliders if they're not needed
+            if numel(obj.images) == 1
+                obj.ui.container_image_slider.Visible = 'off';
+                if obj.nf() > 1
+                    obj.ui.l1_right.Heights = [0, -1, obj.slider_height];
+                else
+                    obj.ui.l1_right.Heights = [0, -1, 0];
+                    obj.ui.container_frames.Visible = 'off';
+                end
+            else
+                if obj.nf() > 1
+                    obj.ui.l1_right.Heights = [obj.slider_height, -1, obj.slider_height];
+                else
+                    obj.ui.l1_right.Heights = [obj.slider_height, -1, 0];
+                    obj.ui.container_frames.Visible = 'off';
+                end
+            end
+            
+            obj.ui.l0.Widths = [obj.left_width, -1];
+            obj.ui.l3_comparison.Widths = [75, -1];
+            obj.ui.l2_left_grid_is.Heights = [-1, 0];
         end
         
         function ui_initialize(obj)
             % image selection list
-            obj.ui.lb_images = uicontrol('Parent', obj.ui.l4_left_grid_is, ...
+            obj.ui.lb_images = uicontrol('Parent', obj.ui.uip_selection, ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
-                'FontSize', 6);
+                'FontSize', 6, 'Units', 'normalized', 'Position', [0, 0, 1, 1]);
             obj.populate_image_list();
             
             % image comparison UI
-            obj.ui.uip_comparison = uipanel('Parent', obj.ui.l4_left_grid_is, ...
-                'Title', 'Comparison', 'Visible', 'off');
-            obj.ui.l5_comparison = uigridcontainer('v0', obj.ui.uip_comparison, ...
-                'GridSize', [3, 2]);
-            obj.ui.label_comparison_method = uicontrol('Parent', obj.ui.l5_comparison, ...
+            obj.ui.label_comparison_method = uicontrol('Parent', obj.ui.l3_comparison, ...
                 'Style', 'text', 'String', 'method');
-            obj.ui.popup_comparison_method = uicontrol('Parent', obj.ui.l5_comparison, ...
+            obj.ui.label_comparison_cmap = uicontrol('Parent', obj.ui.l3_comparison, ...
+                'Style', 'text', 'String', 'cmap');
+            obj.ui.popup_comparison_method = uicontrol('Parent', obj.ui.l3_comparison, ...
                 'Style', 'popupmenu', 'String', {'sliding', 'horzcat', 'vertcat', ...
                 'A - B', 'B - A', 'abs(A - B)', 'RMSE', 'NRMSE', 'MAD'}, ...
                 'Callback', @obj.callback_ui);
-            obj.ui.label_comparison_cmap = uicontrol('Parent', obj.ui.l5_comparison, ...
-                'Style', 'text', 'String', 'cmap');
-            obj.ui.popup_comparison_cmap = uicontrol('Parent', obj.ui.l5_comparison, ...
+            obj.ui.popup_comparison_cmap = uicontrol('Parent', obj.ui.l3_comparison, ...
                 'Style', 'popupmenu', 'String', {'parula', 'jet', 'hsv', 'hot', ...
                 'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', ...
                 'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag'}, ...
-                'Callback', @obj.callback_ui, 'Visible', 'off');
+                'Callback', @obj.callback_ui, 'Visible', 'on');
             
             % slider for image selection
-            obj.ui.container_image_slider = uicontainer('Parent', obj.ui.l1_right);
-            obj.ui.container_image_slider.HeightLimits = [40, 40];
+            obj.ui.container_image_slider = uipanel(obj.ui.l1_right, 'Title', 'image selection');
             obj.ui.slider_images = jslider(obj.ui.container_image_slider, ...
                 'min', 1, 'max', max(2, numel(obj.images)), 'value', 1, 'PaintTicks', true, ...
                 'PaintTickLabels', true, 'MinorTickSpacing', 1, 'MajorTickSpacing', 10, ...
                 'continuous', false, 'Callback', @obj.callback_slider_images, ...
                 'Position', [0, 0, 1, 1], 'Units', 'normalized');
             
-            if numel(obj.images) == 1
-                obj.ui.container_image_slider.Visible = 'off';
-            end
-            
             % main image axes
-            obj.ui.container_img = uicontainer('Parent', obj.ui.l1_right);
+            obj.ui.container_img = uipanel(obj.ui.l1_right);
             obj.axes_handle.Parent = obj.ui.container_img;
             
             % slider bar for frame selection
-            obj.ui.container_frames = uicontainer('Parent', obj.ui.l1_right);
-            obj.ui.container_frames.HeightLimits = [40, 40];
+            obj.ui.container_frames = uipanel(obj.ui.l1_right, 'Title', 'Frames');
             obj.ui.slider_frames = jslider(obj.ui.container_frames, ...
                 'min', 1, 'max', 2, 'value', 1, 'PaintTicks', true, ...
                 'PaintTickLabels', true, 'MinorTickSpacing', 1, 'MajorTickSpacing', 10, ...
                 'continuous', false, 'Callback', @obj.callback_slider_frames, ...
                 'Position', [0, 0, 1, 1], 'Units', 'normalized');
-            
-            % hide slider until it's needed
-            obj.ui.container_frames.Visible = 'off';
         end
         
         function populate_image_list(obj)
@@ -270,8 +289,10 @@ classdef iv < handle
             % show comparison UI if two images are selected
             if numel(obj.selected_image) == 2
                 obj.ui.uip_comparison.Visible = 'on';
+                obj.ui.l2_left_grid_is.Heights = [-1, 2 * 30 + 10];
             else
                 obj.ui.uip_comparison.Visible = 'off';
+                obj.ui.l2_left_grid_is.Heights = [-1, 0];
             end
         end
         
@@ -321,29 +342,6 @@ classdef iv < handle
             % add an image from the base workspace to the list of images
             obj.images{end + 1} = evalin('base', var_name);
             obj.populate_image_list();
-        end
-        
-        function callback_resize(obj, src, evnt) %#ok<INUSD>
-            units = obj.parent_handle.Units;
-            obj.parent_handle.Units = 'pixels';
-            width = obj.parent_handle.Position(3);
-            obj.parent_handle.Units = units;
-            weights = [obj.left_width, max(1, width - obj.left_width)];
-            obj.ui.l0.HorizontalWeight = weights;
-            
-            % optimally place slider using flow container
-            if isfield(obj.ui, 'slider_frames') && strcmpi(obj.ui.container_frames.Visible, 'on')
-                % we might have to flip the slider orientation
-                if obj.ui.container_frames.Position(1) > obj.axes_handle.Parent.Position(1)
-                    obj.ui.slider_frames.set_orientation('vertical');
-                    obj.ui.container_frames.HeightLimits = [2, inf];
-                    obj.ui.container_frames.WidthLimits = [40, 40];
-                else
-                    obj.ui.slider_frames.set_orientation('horizontal');
-                    obj.ui.container_frames.WidthLimits = [2, inf];
-                    obj.ui.container_frames.HeightLimits = [40, 40];
-                end
-            end
         end
         
         function callback_scroll(obj, src, evnt)

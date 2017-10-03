@@ -58,7 +58,7 @@ classdef range_slider < handle
                 parent = figure();
             end
             
-            obj.uip = uigridcontainer('v0', 'Parent', parent);
+            obj.uip = uipanel('Parent', parent, 'BorderWidth', 0);
             obj.uip.Units = 'pixels';
             slider_position = obj.uip.Position;
             obj.uip.Units = 'normalized';
@@ -211,7 +211,7 @@ classdef range_slider < handle
                 high = src.Value + src.Extent;
                 obj.lower = obj.slider_to_real(low);
                 obj.higher = obj.slider_to_real(high);
-                
+
                 obj.callback_changed(obj.lower, obj.higher);
             end
         end
