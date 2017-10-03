@@ -156,18 +156,45 @@ classdef roi < handle
         end
         
         function [width, height] = getDims(obj, with_strides) %#ok<INUSD>
-            with_strides = param('with_strides', true);
+            with_strides = default('with_strides', true);
             if with_strides
                 if obj.x_stride < 0
-                    width = numel(obj.x_min : obj.x_max) * -obj.x_stride;
-                    height = numel(obj.y_min : obj.y_max) * -obj.y_stride;
+                    width = numel(obj.x_min : -obj.x_stride : obj.x_max);
+                elseif obj.x_stride < 1
+                    width = round(numel(obj.x_min : obj.x_max) * obj.x_stride);
                 else
                     width = numel(obj.x_min : obj.x_stride : obj.x_max);
+                    
+                end
+                
+                if obj.y_stride < 0
+                    height = numel(obj.y_min : -obj.y_stride : obj.y_max);
+                elseif obj.y_stride < 1
+                    height = round(numel(obj.y_min : obj.y_max) * obj.y_stride);
+                else
                     height = numel(obj.y_min : obj.y_stride : obj.y_max);
                 end
             else
                 width = obj.x_max - obj.x_min + 1;
                 height = obj.y_max - obj.y_min + 1;
+            end
+        end
+        
+        function patch = apply(obj, im)
+            assert(im.height == obj.height && im.width == obj.width, ...
+                'image dimensions must match the ROI dimensions!');
+            
+            if obj.x_stride < 0
+                patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), :);
+                scale = obj.getDims(true) ./ [obj.width, obj.height];
+                patch.cdata = imresize(patch.cdata, scale([2, 1]), 'bilinear');
+            elseif obj.x_stride < 1
+                patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), :);
+                scale = [obj.y_stride, obj.x_stride];
+                patch.cdata = imresize(patch.cdata, scale, 'bilinear');
+            else
+                patch = im(obj.y_min : obj.y_stride : obj.getYMax(), ...
+                    obj.x_min : obj.x_stride : obj.getXMax(), :);
             end
         end
     end
