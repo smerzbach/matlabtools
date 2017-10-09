@@ -40,8 +40,28 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
     elseif isa(input, 'matlab.ui.Figure')
         figure_handle = input;
         parent_handle = input;
+    elseif isa(input, 'uix.Container')
+        parent_handle = input;
+        figure_handle = input.Parent;
+        max_depth = 1000;
+        depth = 0;
+        while ~isa(figure_handle, 'matlab.ui.Figure') && depth < max_depth
+            try
+                figure_handle = figure_handle.Parent;
+                depth = depth + 1;
+            catch
+                error('get_parent:invalid_input', ...
+                    'cannot find parent figure');
+            end
+        end
+        
+        if isa(figure_handle, 'matlab.ui.Figure')
+            error('get_parent:invalid_input', ...
+                'could not find parent figure!');
+        end
     elseif ~isempty(input)
-        error('input must be an axes, container of figure object');
+        error('get_parent:invalid_input', ...
+            'input must be an axes, container of figure object');
     end
 
     if isempty(parent_handle)
