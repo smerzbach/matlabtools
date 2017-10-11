@@ -109,6 +109,10 @@ classdef roi < handle
             obj.y_min = min(obj.y_min, obj.getYMax());
         end
         
+        function x_min = getXMin(obj)
+            x_min = obj.x_min;
+        end
+        
         function x_max = getXMax(obj, im)
             % return the largest x coordinate inside of the ROI
             
@@ -130,6 +134,10 @@ classdef roi < handle
                 end
                 x_max = w + obj.x_max;
             end
+        end
+        
+        function y_min = getYMin(obj)
+            y_min = obj.y_min;
         end
         
         function y_max = getYMax(obj, im)
