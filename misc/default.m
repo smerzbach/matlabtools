@@ -61,18 +61,22 @@ function p = default(name, default)
             try
                 if isempty(default)
                     default_str = '[]';
+                elseif isnumeric(default)
+                    default_str = mat2str(default);
                 else
                     default_str = string(default);
                 end
             catch
                 try
                     % parse expression for default arg from source code
-                    fid = fopen(stack(end).file, 'r');
-                    for li = 1 : stack(end).line
+                    names = {stack.name}';
+                    ind = find(cellfun(@(name) strcmp(name, 'default'), names));
+                    fid = fopen(stack(ind + 1).file, 'r');
+                    for li = 1 : stack(ind + 1).line
                         line = fgets(fid);
                     end
                     fclose(fid);
-                    tokens = regexp(line, 'default\(.*, (.*)\)', 'tokens');
+                    tokens = regexp(line, ['default\(''', name, ''', (.*)\)'], 'tokens');
                 catch
                     error('default:unsupported_input', ...
                         ['default value input type ''%s'' not supported. ', ...
