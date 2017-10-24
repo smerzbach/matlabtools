@@ -69,11 +69,14 @@ classdef zoomaxes < handle
         old_callback_button_down; % previously set mouse button down callback
         old_callback_button_up; % previously set mouse button up callback
         old_callback_motion; % previously set mouse motion callback
+        
+        xlim_orig; % original x-limits
+        ylim_orig; % original y-limits
+        
+        dirty = false; % this is set to true when the a child has been added to the axes so that the original limits can be updated
     end
     
     properties(Access = protected)
-        xlim_orig; % original x-limits
-        ylim_orig; % original y-limits
         cursor_pos = []; % store cursor position when button goes down
 
         sel_type = {}; % store button type when it goes down
@@ -97,6 +100,7 @@ classdef zoomaxes < handle
             else
                 obj.ah = axes(varargin{:});
             end
+            obj.fh = tb.get_parent(obj.ah);
             
             % store original axes limits to be able to reset to them
             obj.xlim_orig = obj.ah.XLim;
@@ -104,7 +108,6 @@ classdef zoomaxes < handle
             
             % store existing callbacks (they will be called after the
             % internal ones)
-            obj.fh = tb.get_parent(obj.ah);
             obj.old_callback_scroll = obj.fh.WindowScrollWheelFcn;
             obj.old_callback_button_down = obj.fh.WindowButtonDownFcn;
             obj.old_callback_button_up = obj.fh.WindowButtonUpFcn;
@@ -115,12 +118,164 @@ classdef zoomaxes < handle
             obj.fh.WindowButtonDownFcn = @obj.callback_button_down;
             obj.fh.WindowButtonUpFcn = @obj.callback_button_up;
             obj.fh.WindowButtonMotionFcn = @obj.callback_motion;
+            
+            % add event listeners to external changes to XLim or YLim
+            addlistener(obj.ah, 'XLim', 'PostSet', @obj.callback_xlim);
+            addlistener(obj.ah, 'YLim', 'PostSet', @obj.callback_ylim);
+            addlistener(obj.ah, 'ChildAdded', @obj.callback_children);
+            addlistener(obj.ah, 'ChildRemoved', @obj.callback_children);
+        end
+        
+        % convenience function so we can call axis(zoomaxes_obj, ...)
+        function varargout = axis(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = axis(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call hold(zoomaxes_obj, ...)
+        function hold(obj, varargin)
+            hold(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call image(zoomaxes_obj, ...)
+        function varargout = image(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = image(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call imagesc(zoomaxes_obj, ...)
+        function varargout = imagesc(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = imagesc(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call patch(zoomaxes_obj, ...)
+        function varargout = patch(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = patch(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call mesh(zoomaxes_obj, ...)
+        function varargout = mesh(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = mesh(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call plot(zoomaxes_obj, ...)
+        function varargout = plot(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = plot(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call plot3(zoomaxes_obj, ...)
+        function varargout = plot3(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = plot3(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call quiver(zoomaxes_obj, ...)
+        function varargout = quiver(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = quiver(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call quiver3(zoomaxes_obj, ...)
+        function varargout = quiver3(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = quiver3(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call scatter(zoomaxes_obj, ...)
+        function varargout = scatter(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = scatter(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call scatter3(zoomaxes_obj, ...)
+        function varargout = scatter3(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = scatter3(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call surface(zoomaxes_obj, ...)
+        function varargout = surface(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = surface(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call surf(zoomaxes_obj, ...)
+        function varargout = surf(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = surf(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call trimesh(zoomaxes_obj, ...)
+        function varargout = trimesh(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = trimesh(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call trisurf(zoomaxes_obj, ...)
+        function varargout = trisurf(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = trisurf(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call view(zoomaxes_obj, ...)
+        function varargout = view(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = view(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call set(zoomaxes_obj, ...)
+        function set(obj, varargin)
+            set(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call get(zoomaxes_obj, ...)
+        function varargout = get(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = get(obj.ah, varargin{:});
         end
     end
     
     methods(Access = private)
+        function callback_xlim(obj, src, value) %#ok<INUSD>
+            stack = dbstack();
+            if all(cellfun(@(cb) all(~strcmp({stack.name}', cb)), ...
+                    {'zoomaxes.callback_scroll', ...
+                    'zoomaxes.callback_motion', ...
+                    'zoomaxes.callback_button_down'}))
+                obj.dirty = true;
+            end
+        end
+        
+        function callback_ylim(obj, src, value) %#ok<INUSD>
+            stack = dbstack();
+            if all(cellfun(@(cb) all(~strcmp({stack.name}', cb)), ...
+                    {'zoomaxes.callback_scroll', ...
+                    'zoomaxes.callback_motion', ...
+                    'zoomaxes.callback_button_down'}))
+                obj.dirty = true;
+            end
+        end
+        
+        function callback_children(obj, src, child_data) %#ok<INUSD>
+            % called after a new child has been added or removed so that
+            % the original x- and y-limits can be updated
+            obj.dirty = true;
+        end
+        
         function callback_scroll(obj, src, evnt)
             % react to scroll wheel events
+            
+            if obj.dirty
+                % original axis limits are outdated -> reset them
+                obj.xlim_orig = obj.ah.XLim;
+                obj.ylim_orig = obj.ah.YLim;
+                obj.dirty = false;
+            end
+            
             sc = evnt.VerticalScrollCount;
             factor = obj.zoom_factor ^ sc;
             if utils.in_axis(obj.fh, obj.ah)
@@ -205,6 +360,14 @@ classdef zoomaxes < handle
         
         function callback_motion(obj, src, evnt)
             % mouse moved
+            
+            if obj.dirty
+                % original axis limits are outdated -> reset them
+                obj.xlim_orig = obj.ah.XLim;
+                obj.ylim_orig = obj.ah.YLim;
+                obj.dirty = false;
+            end
+            
             pos = obj.ah.CurrentPoint(1, 1 : 2);
             if ~isempty(obj.cursor_pos) && ismember('normal', obj.sel_type)
                 % left button dragged -> pan
@@ -238,10 +401,10 @@ classdef zoomaxes < handle
                 % double click -> reset to original limits
                 xlim = obj.ah.XLim;
                 ylim = obj.ah.YLim;
-                if obj.x_pan
+                if obj.x_zoom
                     xlim = obj.xlim_orig;
                 end
-                if obj.y_pan
+                if obj.y_zoom
                     ylim = obj.ylim_orig;
                 end
                 set(obj.ah, 'XLim', xlim, 'YLim', ylim);
