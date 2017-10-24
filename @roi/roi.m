@@ -189,6 +189,12 @@ classdef roi < handle
         end
         
         function patch = apply(obj, im)
+            was_img = isa(im, 'img');
+            
+            if ~was_img
+                im = img(im);
+            end
+            
             assert(im.height == obj.height && im.width == obj.width, ...
                 'image dimensions must match the ROI dimensions!');
             
@@ -203,6 +209,10 @@ classdef roi < handle
             else
                 patch = im(obj.y_min : obj.y_stride : obj.getYMax(), ...
                     obj.x_min : obj.x_stride : obj.getXMax(), :);
+            end
+            
+            if ~was_img
+                im = im.cdata;
             end
         end
     end
