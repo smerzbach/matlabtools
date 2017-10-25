@@ -89,7 +89,12 @@ classdef iv < handle
                 tb.get_parent(parent);
             
             % enable mouse interactivity (zoom & pan) by default
-            obj.zoomaxes_handle = zoomaxes(obj.axes_handle);
+            if ~isempty(obj.axes_handle)
+                obj.zoomaxes_handle = zoomaxes(obj.axes_handle);
+            else
+                obj.zoomaxes_handle = zoomaxes();
+                obj.axes_handle = obj.zoomaxes_handle.ah;
+            end
             
             obj.old_callback_key_press = obj.figure_handle.WindowKeyPressFcn;
             obj.old_callback_key_release = obj.figure_handle.WindowKeyReleaseFcn;
