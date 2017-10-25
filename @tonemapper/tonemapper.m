@@ -156,6 +156,10 @@ classdef tonemapper < handle
             
             obj.populate_channel_list();
             if obj.image.is_spectral()
+                % integers cannot be converted to RGB
+                if isinteger(obj.image.cdata)
+                    obj.image.assign(single(obj.image));
+                end
                 im = obj.image.to_rgb();
             else
                 im = obj.image;
