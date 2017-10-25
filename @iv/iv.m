@@ -25,18 +25,28 @@
 % 
 % Rudimentary image viewer class.
 classdef iv < handle    
-    properties(Access = protected)
+    properties(Access = public)
         figure_handle;
         parent_handle;
         axes_handle;
+        zoomaxes_handle;
         image_handle;
-        ui; % struct storing all layout handles
         
         images; % cell array of img objects
+        
+        tonemapper; % map image data to a range that allows for display
+    end
+    
+    properties(Access = protected)
+        ui; % struct storing all layout handles
         selected_image = 1;
         selected_frame = 1;
         
-        tonemapper; % map image data to a range that allows for display
+        old_callback_key_press;
+        old_callback_key_release;
+        old_callback_scroll;
+        
+        key_mods = {};
     end
     
     properties(Constant)
@@ -71,11 +81,22 @@ classdef iv < handle
                         'unkown parameter name %s', varargin{ii});
                 end
             end
+            if isempty(parent)
+                parent = figure();
+                parent = axes(parent);
+            end
             [obj.figure_handle, obj.parent_handle, obj.axes_handle] = ...
                 tb.get_parent(parent);
             
-            obj.figure_handle.WindowScrollWheelFcn = @obj.callback_scroll;
+            % enable mouse interactivity (zoom & pan) by default
+            obj.zoomaxes_handle = zoomaxes(obj.axes_handle);
             
+            obj.old_callback_key_press = obj.figure_handle.WindowKeyPressFcn;
+            obj.old_callback_key_release = obj.figure_handle.WindowKeyReleaseFcn;
+            obj.old_callback_scroll = obj.figure_handle.WindowScrollWheelFcn;
+            obj.figure_handle.WindowScrollWheelFcn = @obj.callback_scroll;
+            obj.figure_handle.WindowKeyPressFcn = @obj.callback_key_press;
+            obj.figure_handle.WindowKeyReleaseFcn = @obj.callback_key_release;
             
             obj.ui_layout();
             obj.ui_initialize();
@@ -195,7 +216,7 @@ classdef iv < handle
     
     methods(Access = protected)
         function ui_layout(obj)
-            obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent_handle);
+            obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent_handle, 'Spacing', 5);
             obj.ui.l1_left_tabs = uix.TabPanel('Parent', obj.ui.l0);
             obj.ui.l1_left_tab_tm = uipanel(obj.ui.l1_left_tabs, 'Title', 'Tonemapping');
             obj.ui.l2_left_grid_is = uix.VBox('Parent', obj.ui.l1_left_tabs);
@@ -308,7 +329,7 @@ classdef iv < handle
             obj.change_image();
         end
         
-        function callback_ui(obj, src, evnt)
+        function callback_ui(obj, src, evnt) %#ok<INUSD>
             % react to image selections
             if src == obj.ui.lb_images
                 sel = src.Value;
@@ -344,16 +365,42 @@ classdef iv < handle
             obj.populate_image_list();
         end
         
+        function callback_key_press(obj, src, evnt)
+            obj.key_mods = union(obj.key_mods, {evnt.Key});
+            
+            if ~isempty(obj.old_callback_key_press)
+                obj.old_callback_key_press(src, evnt);
+            end
+        end
+        
+        function callback_key_release(obj, src, evnt)
+            obj.key_mods = setdiff(obj.key_mods, {evnt.Key});
+            
+            if ~isempty(obj.old_callback_key_release)
+                obj.old_callback_key_release(src, evnt);
+            end
+        end
+        
         function callback_scroll(obj, src, evnt)
-            sc = evnt.VerticalScrollCount;
-            if utils.in_axis(obj.figure_handle, obj.axes_handle)
-                if sc < 0
-                    % wheel up
-                    obj.tonemapper.setScale(obj.tonemapper.scale * 1.1 ^ -sc);
-                else
-                    % wheel down
-                    obj.tonemapper.setScale(obj.tonemapper.scale / 1.1 ^ sc);
+            if in_axis(obj.figure_handle, obj.axes_handle)
+                sc = evnt.VerticalScrollCount;
+                if ismember(obj.key_mods, {'control'})
+                    if sc < 0 % wheel up
+                        obj.tonemapper.setScale(obj.tonemapper.scale * 1.1 ^ -sc);
+                    else % wheel down
+                        obj.tonemapper.setScale(obj.tonemapper.scale / 1.1 ^ sc);
+                    end
+                elseif ismember(obj.key_mods, {'shift'})
+                    if sc < 0 % wheel up
+                        obj.tonemapper.setGamma(obj.tonemapper.gamma * 1.1 ^ -sc);
+                    else % wheel down
+                        obj.tonemapper.setGamma(obj.tonemapper.gamma / 1.1 ^ sc);
+                    end
                 end
+            end
+            
+            if ~isempty(obj.old_callback_scroll)
+                obj.old_callback_scroll(src, evnt);
             end
         end
     end

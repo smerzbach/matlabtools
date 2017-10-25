@@ -23,11 +23,14 @@
 % *
 % *************************************************************************
 %
-% Given a handle to an axes object, this function returns the axes's direct
-% parent (e.g. some container like an uipanel) and the containing figure.
-% If the input is a uipanel or figure handle, a new axes is created
-% instead.
+% Given a handle to an axes, container or even figure handle object, this
+% function returns the object's direct parent (e.g. some container like an
+% uipanel) and the containing figure.
 function [figure_handle, parent_handle, axes_handle] = get_parent(input)
+    if isempty(input)
+        error('get_parent:invalid_input', 'input cannot be empty');
+    end
+    
     figure_handle = [];
     parent_handle = [];
     axes_handle = [];
@@ -64,19 +67,11 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
             'input must be an axes, container of figure object');
     end
 
-    if isempty(parent_handle)
-        if ~isempty(axes_handle)
-            parent_handle = axes_handle.Parent;
-        else
-            parent_handle = figure();
-        end
+    if isempty(parent_handle) && ~isempty(axes_handle)
+        parent_handle = axes_handle.Parent;
     end
 
     if isempty(figure_handle)
         figure_handle = ancestor(parent_handle, 'figure');
-    end
-    
-    if isempty(axes_handle)
-        axes_handle = axes('Parent', parent_handle);
     end
 end

@@ -23,22 +23,35 @@
 % *
 % *************************************************************************
 %
-% Widget providing a histogram of an associated image along with a range
-% slider to select the dynamic range to display.
+% Widget providing a histogram of an associated image which allows to
+% interactively select the dynamic range to display.
 classdef hist_widget < handle
     properties(Access = public)
+        parent;
+        fh;
+        ah;
+        zah;
+        
+        orientation = 'horizontal';
     end
     
     properties(Access = protected)
-        parent;
         ui;
         bins;
         counts;
-        data;
+        image;
         
-        orientation = 'horizontal';
         callback;
         hh; % histogram handle
+        
+        cursor_pos = [];
+        sel_type = {};
+        
+        ph_rect;
+        
+        old_callback_mouse_down;
+        old_callback_mouse_up;
+        old_callback_motion;
     end
     
     methods(Access = public)
@@ -48,6 +61,8 @@ classdef hist_widget < handle
             end
             
             obj.parent = parent;
+            obj.ah = axes(parent);
+            obj.fh = tb.get_parent(obj.ah);
             
             if ~isa(parent, 'matlab.ui.container.internal.UIContainer')
                 obj.parent = uipanel('Parent', obj.parent);
@@ -68,29 +83,46 @@ classdef hist_widget < handle
                         obj.orientation = lower(varargin{ii + 1});
                     otherwise
                         error('hist_widget:unsupported_param', ...
-                            'unsupported paramter name %s', varargin{ii});
+                            'unsupported parameter name %s', varargin{ii});
                 end
             end
             
-            obj.ui_layout();
+            obj.old_callback_mouse_down = obj.fh.WindowButtonDownFcn;
+            obj.old_callback_mouse_up = obj.fh.WindowButtonUpFcn;
+            obj.old_callback_motion = obj.fh.WindowButtonMotionFcn;
+            
+            obj.fh.WindowButtonDownFcn = @obj.callback_mouse_down;
+            obj.fh.WindowButtonUpFcn = @obj.callback_mouse_up;
+            obj.fh.WindowButtonMotionFcn = @obj.callback_motion;
+            
             obj.ui_initialize();
-            obj.ui_layout_finalize();
         end
         
         function update(obj, varargin)
-            obj.data = varargin{1};
-            if ~isa(obj.data, 'img')
-                obj.data = img(obj.data);
+            obj.image = varargin{1};
+            if ~isa(obj.image, 'img')
+                obj.image = img(obj.image);
             end
             
             try
                 delete(obj.hh)
             end
             
-            obj.hh = histogram(obj.ui.axes, obj.data{:});
+            obj.ah.Units = 'pixels';
+            if strcmpi(obj.orientation, 'horizontal')
+                num_bins = max(3, obj.ah.Position(3));
+            else
+                num_bins = max(3, obj.ah.Position(4));
+            end
+            obj.ah.Units = 'normalized';
             
-            obj.ui.slider.set_minimum(obj.data.min());
-            obj.ui.slider.set_maximum(obj.data.max());
+            [obj.counts, obj.bins] = obj.image.hist('bins', round(num_bins / 3), 'channel_wise', true);
+%             obj.counts = cfun(@(c) log(c + 1), obj.counts);
+            bar_width = mean(diff(obj.bins));
+            bins = obj.bins(1 : end - 1) + bar_width / 2; %#ok<PROPLC>
+            obj.hh = cfun(@(h) bar(obj.ah, bins, h, 1), obj.counts); %#ok<PROPLC>
+            obj.hh = [obj.hh{:}];
+            set(obj.hh, 'EdgeColor', 'none', 'FaceAlpha', 0.25);
         end
         
         function set_colormap(obj, map)
@@ -99,51 +131,71 @@ classdef hist_widget < handle
     end
     
     methods(Access = protected)
-        function ui_layout(obj)
-            if strcmpi(obj.orientation, 'horizontal')
-                obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
-            else
-                obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent);
-            end
-        end
-        
-        function ui_layout_finalize(obj)
-            if strcmpi(obj.orientation, 'horizontal')
-                obj.ui.l0.Heights = [-1, 75];
-            else
-                obj.ui.l0.Widths = [75, -1];
-            end
-        end
-        
         function ui_initialize(obj)
-            if strcmpi(obj.orientation, 'horizontal')
-                obj.ui.axes = axes('Parent', obj.ui.l0, 'Position', [0, 0.5, 1, 0.5], ...
-                    'XTickLabel', [], 'YTickLabel', []);
-                
-                obj.ui.l1 = uipanel('Parent', obj.ui.l0, 'Title', '', 'Position', [0, 0, 1, 0.5]);
-                obj.ui.slider = range_slider(obj.ui.l1, 'Orientation', obj.orientation, ...
-                    'Position', [0, 0, 1, 1], 'Callback', @obj.callback_range_slider);
-            else
-                obj.ui.l1_left = uipanel('Parent', obj.ui.l0, 'Title', '', ...
-                    'Position', [0, 0, 0.5, 1], 'BorderWidth', 0);
-                obj.ui.l1_right = uipanel('Parent', obj.ui.l0, 'Title', '', ...
-                    'Position', [0.5, 0, 0.5, 1], 'BorderWidth', 0);
-                
-                obj.ui.slider = range_slider(obj.ui.l1_left, 'Orientation', obj.orientation, ...
-                    'Position', [0, 0, 1, 1], 'Callback', @obj.callback_range_slider, ...
-                    'min', 0, 'max', 1, 'low', 0, 'high', 1);
-                obj.ui.axes = axes('Parent', obj.ui.l1_right, 'Position', [0, 0, 1, 1], ...
-                    'XTickLabel', [], 'YTickLabel', []);
-                
+            obj.zah = zoomaxes(obj.ah, 'Parent', obj.parent); %, 'Position', [0, 0, 1, 1]);
+            obj.zah.y_zoom = false;
+            obj.zah.y_pan = false;
+            if strcmpi(obj.orientation, 'vertical')
                 % rotate x-y axes of histogram
-                view(obj.ui.axes, 90, 90);
-                obj.ui.axes.XDir = 'reverse';
-                hold(obj.ui.axes, 'on');
+                view(obj.ah, 90, 90);
+                obj.ah.XDir = 'reverse';
+            end
+            hold(obj.ah, 'on');
+            obj.ah.YScale = 'log';
+        end
+        
+        function callback_mouse_down(obj, src, evnt)
+            if in_axis(obj.fh, obj.ah)
+                obj.sel_type = union(obj.sel_type, {obj.fh.SelectionType});
+                
+                if ismember('extend', obj.sel_type)
+                    obj.cursor_pos = obj.ah.CurrentPoint(1, 1 : 2);
+                    obj.zah.update_limits = false;
+                    obj.callback_motion(src, evnt);
+                end
+            end
+            
+            if ~isempty(obj.old_callback_mouse_down)
+                obj.old_callback_mouse_down(src, evnt);
             end
         end
         
-        function callback_range_slider(obj, lower, upper)
-            obj.callback(lower, upper);
+        function callback_mouse_up(obj, src, evnt)
+            if ~isempty(obj.cursor_pos) && ~isempty(obj.ph_rect)
+                bounds = sort([obj.ph_rect.XData(1), obj.ph_rect.XData(2)]);
+                obj.callback(bounds(1), bounds(2));
+            end
+            
+            obj.cursor_pos = [];
+            obj.sel_type = setdiff(obj.sel_type, {obj.fh.SelectionType});
+            obj.zah.update_limits = true;
+            
+            if ~isempty(obj.old_callback_mouse_up)
+                obj.old_callback_mouse_up(src, evnt);
+            end
+        end
+        
+        function callback_motion(obj, src, evnt)
+            if ~isempty(obj.cursor_pos) && ismember('extend', obj.sel_type)
+                % right button dragged -> zoom selection
+                p1 = obj.cursor_pos(1);
+                p2 = obj.ah.CurrentPoint(1, 1);
+                ymin = obj.ah.YLim(1);
+                ymax = obj.ah.YLim(2);
+                if isempty(obj.ph_rect)
+                    hold(obj.ah, 'on');
+                    obj.ph_rect = plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
+                        [ymin, ymin, ymax, ymax, ymin], 'Color', [1, 0, 1]);
+                else
+                    obj.ph_rect.Visible = 'on';
+                    set(obj.ph_rect, 'XData', [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
+                        'YData', [ymin, ymin, ymax, ymax, ymin], 'Color', [1, 0, 1]);
+                end
+            end
+            
+            if ~isempty(obj.old_callback_motion)
+                obj.old_callback_motion(src, evnt);
+            end
         end
     end
 end
