@@ -1291,6 +1291,33 @@ classdef img < handle & matlab.mixin.Copyable
                 obj.user = input;
             end
         end
+        
+        function [counts, bins] = hist(obj, varargin)
+            % compute histograms (optionally channel-wise)
+            [varargin, channel_wise] = arg(varargin, 'channel_wise', false);
+            [varargin, bins] = arg(varargin, 'bins', 100); %#ok<ASGLU>
+            
+            if isinteger(obj.cdata)
+                pixels = single(obj.cdata);
+            else
+                pixels = obj.cdata;
+            end
+            
+            if channel_wise
+                channels = squeeze(mat2cell(pixels, obj.height, obj.width, ones(obj.num_channels, 1)));
+                if isscalar(bins)
+                    % compute unified bins for all channels
+                    pixels_finite = pixels(isfinite(pixels));
+                    bins = linspace(min(pixels_finite(:)), max(pixels_finite(:)), bins + 1);
+                end
+                [counts, bins] = cfun(@(channel) histcounts(channel(:), bins), channels);
+                bins = bins{1};
+            else
+                [counts, bins] = histcounts(pixels(:), bins);
+                % make return format uniform
+                counts = {counts};
+            end
+        end
 
 %% CALLBACKS
         function add_viewer(obj, v)
