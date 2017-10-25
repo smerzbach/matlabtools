@@ -69,17 +69,20 @@ classdef zoomaxes < handle
         old_callback_button_down; % previously set mouse button down callback
         old_callback_button_up; % previously set mouse button up callback
         old_callback_motion; % previously set mouse motion callback
+        old_callback_key_press; % previously set key press callback
+        old_callback_key_release; % previously set key release callback
         
         xlim_orig; % original x-limits
         ylim_orig; % original y-limits
         
+        update_limits = true; % should the original limits be updated if they are changed due to external events (e.g. new child added)
         dirty = false; % this is set to true when the a child has been added to the axes so that the original limits can be updated
     end
     
     properties(Access = protected)
         cursor_pos = []; % store cursor position when button goes down
-
         sel_type = {}; % store button type when it goes down
+        key_mods = {}; % keyboard modifiers pressed?
         
         ph_rect = []; % plot handle to visualize zoom selection
     end
@@ -112,12 +115,16 @@ classdef zoomaxes < handle
             obj.old_callback_button_down = obj.fh.WindowButtonDownFcn;
             obj.old_callback_button_up = obj.fh.WindowButtonUpFcn;
             obj.old_callback_motion = obj.fh.WindowButtonMotionFcn;
+            obj.old_callback_key_press = obj.fh.WindowKeyPressFcn;
+            obj.old_callback_key_release = obj.fh.WindowKeyReleaseFcn;
             
             % set internal callbacks
             obj.fh.WindowScrollWheelFcn = @obj.callback_scroll;
             obj.fh.WindowButtonDownFcn = @obj.callback_button_down;
             obj.fh.WindowButtonUpFcn = @obj.callback_button_up;
             obj.fh.WindowButtonMotionFcn = @obj.callback_motion;
+            obj.fh.WindowKeyPressFcn = @obj.callback_key_press;
+            obj.fh.WindowKeyReleaseFcn = @obj.callback_key_release;
             
             % add event listeners to external changes to XLim or YLim
             addlistener(obj.ah, 'XLim', 'PostSet', @obj.callback_xlim);
@@ -130,6 +137,30 @@ classdef zoomaxes < handle
         function varargout = axis(obj, varargin)
             varargout = cell(1, nargout);
             [varargout{:}] = axis(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call bar(zoomaxes_obj, ...)
+        function varargout = bar(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = bar(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call barh(zoomaxes_obj, ...)
+        function varargout = barh(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = barh(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call bar3(zoomaxes_obj, ...)
+        function varargout = bar3(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = bar3(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call bar3h(zoomaxes_obj, ...)
+        function varargout = bar3h(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = bar3h(obj.ah, varargin{:});
         end
         
         % convenience function so we can call hold(zoomaxes_obj, ...)
@@ -197,6 +228,18 @@ classdef zoomaxes < handle
             [varargout{:}] = scatter3(obj.ah, varargin{:});
         end
         
+        % convenience function so we can call stairs(zoomaxes_obj, ...)
+        function varargout = stairs(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = stairs(obj.ah, varargin{:});
+        end
+        
+        % convenience function so we can call stem(zoomaxes_obj, ...)
+        function varargout = stem(obj, varargin)
+            varargout = cell(1, nargout);
+            [varargout{:}] = stem(obj.ah, varargin{:});
+        end
+        
         % convenience function so we can call surface(zoomaxes_obj, ...)
         function varargout = surface(obj, varargin)
             varargout = cell(1, nargout);
@@ -242,20 +285,22 @@ classdef zoomaxes < handle
     methods(Access = private)
         function callback_xlim(obj, src, value) %#ok<INUSD>
             stack = dbstack();
-            if all(cellfun(@(cb) all(~strcmp({stack.name}', cb)), ...
+            if obj.update_limits && all(cellfun(@(cb) all(~strcmp({stack.name}', cb)), ...
                     {'zoomaxes.callback_scroll', ...
                     'zoomaxes.callback_motion', ...
-                    'zoomaxes.callback_button_down'}))
+                    'zoomaxes.callback_button_down', ...
+                    'zoomaxes.callback_button_up'}))
                 obj.dirty = true;
             end
         end
         
         function callback_ylim(obj, src, value) %#ok<INUSD>
             stack = dbstack();
-            if all(cellfun(@(cb) all(~strcmp({stack.name}', cb)), ...
+            if obj.update_limits && all(cellfun(@(cb) all(~strcmp({stack.name}', cb)), ...
                     {'zoomaxes.callback_scroll', ...
                     'zoomaxes.callback_motion', ...
-                    'zoomaxes.callback_button_down'}))
+                    'zoomaxes.callback_button_down', ...
+                    'zoomaxes.callback_button_up'}))
                 obj.dirty = true;
             end
         end
@@ -263,22 +308,25 @@ classdef zoomaxes < handle
         function callback_children(obj, src, child_data) %#ok<INUSD>
             % called after a new child has been added or removed so that
             % the original x- and y-limits can be updated
-            obj.dirty = true;
+            if obj.update_limits
+                obj.dirty = true;
+            end
         end
         
         function callback_scroll(obj, src, evnt)
             % react to scroll wheel events
             
-            if obj.dirty
-                % original axis limits are outdated -> reset them
-                obj.xlim_orig = obj.ah.XLim;
-                obj.ylim_orig = obj.ah.YLim;
-                obj.dirty = false;
-            end
+            if in_axis(obj.fh, obj.ah) && isempty(obj.key_mods)
+                if obj.dirty && obj.update_limits
+                    % original axis limits are outdated -> reset them
+                    obj.xlim_orig = obj.ah.XLim;
+                    obj.ylim_orig = obj.ah.YLim;
+                    obj.dirty = false;
+                end
+
+                sc = evnt.VerticalScrollCount;
+                factor = obj.zoom_factor ^ sc;
             
-            sc = evnt.VerticalScrollCount;
-            factor = obj.zoom_factor ^ sc;
-            if utils.in_axis(obj.fh, obj.ah)
                 pos = obj.ah.CurrentPoint(1, 1 : 2);
                 xlim = obj.ah.XLim;
                 ylim = obj.ah.YLim;
@@ -323,10 +371,10 @@ classdef zoomaxes < handle
         
         function callback_button_down(obj, src, evnt)
             % mouse button is down
-            obj.sel_type = union(obj.sel_type, {obj.fh.SelectionType});
-            if utils.in_axis(obj.fh, obj.ah)
+            if in_axis(obj.fh, obj.ah)
+                obj.sel_type = union(obj.sel_type, {obj.fh.SelectionType});
                 obj.cursor_pos = obj.ah.CurrentPoint(1, 1 : 2);
-                obj.callback_motion();
+                obj.callback_motion(src, evnt);
             end
             if ~isempty(obj.old_callback_button_down)
                 obj.old_callback_button_down(src, evnt);
@@ -338,7 +386,10 @@ classdef zoomaxes < handle
             if ismember('alt', obj.sel_type)
                 % right button was dragged -> finish zoom selection
                 pos = obj.ah.CurrentPoint(1, 1 : 2);
+                prev = obj.update_limits;
+                obj.update_limits = false;
                 obj.ph_rect.Visible = 'Off';
+                obj.update_limits = prev;
                 xlim = sort([obj.cursor_pos(1), pos(1)]);
                 ylim = sort([obj.cursor_pos(2), pos(2)]);
                 
@@ -361,7 +412,7 @@ classdef zoomaxes < handle
         function callback_motion(obj, src, evnt)
             % mouse moved
             
-            if obj.dirty
+            if obj.dirty && obj.update_limits
                 % original axis limits are outdated -> reset them
                 obj.xlim_orig = obj.ah.XLim;
                 obj.ylim_orig = obj.ah.YLim;
@@ -386,6 +437,8 @@ classdef zoomaxes < handle
                 % right button dragged -> zoom selection
                 p1 = obj.cursor_pos;
                 p2 = pos;
+                prev = obj.update_limits;
+                obj.update_limits = false;
                 if isempty(obj.ph_rect)
                     hold(obj.ah, 'on');
                     obj.ph_rect = plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
@@ -395,6 +448,7 @@ classdef zoomaxes < handle
                     set(obj.ph_rect, 'XData', [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
                         'YData', [p1(2), p1(2), p2(2), p2(2), p1(2)]);
                 end
+                obj.update_limits = prev;
             end
             
             if ismember('open', obj.sel_type)
@@ -412,6 +466,20 @@ classdef zoomaxes < handle
             
             if ~isempty(obj.old_callback_motion)
                 obj.old_callback_motion(src, evnt);
+            end
+        end
+        
+        function callback_key_press(obj, src, evnt)
+            obj.key_mods = union(obj.key_mods, {evnt.Key});
+            if ~isempty(obj.old_callback_key_press)
+                obj.old_callback_key_press(src, evnt);
+            end
+        end
+        
+        function callback_key_release(obj, src, evnt)
+            obj.key_mods = setdiff(obj.key_mods, {evnt.Key});
+            if ~isempty(obj.old_callback_key_release)
+                obj.old_callback_key_release(src, evnt);
             end
         end
     end
