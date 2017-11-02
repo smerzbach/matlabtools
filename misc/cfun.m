@@ -26,7 +26,6 @@
 % Simple wrapper for cellfun calling it with the annoying UniformOutput
 % argument. Usage is exactly like cellfun otherwise.
 function varargout = cfun(varargin)
-    n = max(1, nargout);
-    varargout = cell(n, 1);
+    varargout = cell(nargout, 1);
     [varargout{:}] = cellfun(varargin{:}, 'UniformOutput', false);
 end
