@@ -212,7 +212,7 @@ classdef roi < handle
             end
             
             if ~was_img
-                im = im.cdata;
+                patch = patch.cdata;
             end
         end
     end

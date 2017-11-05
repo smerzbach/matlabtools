@@ -147,8 +147,9 @@ classdef img < handle & matlab.mixin.Copyable
             % channels or frames) of img objects and / or numeric arrays
             
             % treat img objects and numeric arrays separately
-            img_inds = cellfun(@(x) isa(x, 'img'), varargin);
-            arr_inds = cellfun(@(x) isnumeric(x), varargin);
+            non_empty_inds = ~cellfun(@isempty, varargin);
+            img_inds = cellfun(@(x) isa(x, 'img'), varargin(non_empty_inds));
+            arr_inds = cellfun(@(x) isnumeric(x), varargin(non_empty_inds));
             if ~all(img_inds | arr_inds)
                 error('img:cat_input_mismatch', ...
                     'only img objects and numeric arrays can be concatenated.');
@@ -755,10 +756,17 @@ classdef img < handle & matlab.mixin.Copyable
                         curly = true;
                     end
                     varargout{1} = builtin('subsref', obj.cdata, S);
+                    if numel(subs) >= 3 && (islogical(subs{3}) || ...
+                            isnumeric(subs{3}))
+                        channel_names_out = obj.channel_names(subs{3});
+                    else
+                        channel_names_out = obj.channel_names;
+                    end
                     if curly
                         S.type = '{}';
+                        error('not implemented yet');
                     else
-                        varargout{1} = img(varargout{1}.cdata);
+                        varargout{1} = img(varargout{1}, 'wls', channel_names_out);
                     end
                 end
 
