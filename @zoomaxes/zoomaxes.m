@@ -411,12 +411,15 @@ classdef zoomaxes < handle
         
         function callback_motion(obj, src, evnt)
             % mouse moved
-            
             if obj.dirty && obj.update_limits
                 % original axis limits are outdated -> reset them
                 obj.xlim_orig = obj.ah.XLim;
                 obj.ylim_orig = obj.ah.YLim;
                 obj.dirty = false;
+            end
+            
+            if ~in_axis(obj.fh, obj.ah)
+                return;
             end
             
             pos = obj.ah.CurrentPoint(1, 1 : 2);
@@ -453,15 +456,10 @@ classdef zoomaxes < handle
             
             if ismember('open', obj.sel_type)
                 % double click -> reset to original limits
-                xlim = obj.ah.XLim;
-                ylim = obj.ah.YLim;
-                if obj.x_zoom
-                    xlim = obj.xlim_orig;
-                end
-                if obj.y_zoom
-                    ylim = obj.ylim_orig;
-                end
-                set(obj.ah, 'XLim', xlim, 'YLim', ylim);
+                obj.ah.XLimMode = 'auto';
+                obj.ah.YLimMode = 'auto';
+                obj.xlim_orig = obj.ah.XLim;
+                obj.ylim_orig = obj.ah.YLim;
             end
             
             if ~isempty(obj.old_callback_motion)
