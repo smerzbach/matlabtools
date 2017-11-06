@@ -905,8 +905,6 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
-        
-        
         function obj_out = reshape(obj, varargin)
             % reshape the underlying array
             obj_out = obj.copy();
@@ -934,6 +932,12 @@ classdef img < handle & matlab.mixin.Copyable
             [varargout{:}] = size(obj.cdata, varargin{:});
         end
         
+        function str = class(obj)
+            % return class of object as string, this is overloaded to allow
+            % displaying strings like 'img (uint8)' in the workspace list
+            str = ['img (', class(obj.cdata), ')'];
+        end
+        
         function res = bigger_than(obj, comp)
             % check if a second img object has bigger dimensions
             if ~isa(comp, 'img')
@@ -949,6 +953,21 @@ classdef img < handle & matlab.mixin.Copyable
             elseif any(s1 > s2) && any(s1 < s2)
                 res = -1;
             end
+        end
+        
+        function tf = isfloat(obj)
+            % check if underlying array is of floating point type
+            tf = isfloat(obj.cdata);
+        end
+        
+        function tf = isinteger(obj)
+            % check if underlying array is of integer type
+            tf = isinteger(obj.cdata);
+        end
+        
+        function tf = islogical(obj)
+            % check if underlying array is of logical type
+            tf = islogical(obj.cdata);
         end
         
         function tf = is_monochrome(obj)
@@ -1132,6 +1151,61 @@ classdef img < handle & matlab.mixin.Copyable
         function values = logical(obj)
             % conversion to numeric array
             values = logical(obj.cdata);
+        end
+        
+        function obj = to_double(obj)
+            % convert to img obj of double array
+            obj.assign(single(obj.cdata));
+        end
+        
+        function obj = to_single(obj)
+            % convert to img obj of single array
+            obj.assign(single(obj.cdata));
+        end
+        
+        function obj = to_int64(obj)
+            % convert to img obj of int64 array
+            obj.assign(int64(obj.cdata));
+        end
+        
+        function obj = to_int32(obj)
+            % convert to img obj of int32 array
+            obj.assign(int32(obj.cdata));
+        end
+        
+        function obj = to_int16(obj)
+            % convert to img obj of int16 array
+            obj.assign(int16(obj.cdata));
+        end
+        
+        function obj = to_int8(obj)
+            % convert to img obj of int8 array
+            obj.assign(int8(obj.cdata));
+        end
+        
+        function obj = to_uint64(obj)
+            % convert to img obj of uint64 array
+            obj.assign(uint64(obj.cdata));
+        end
+        
+        function obj = to_uint32(obj)
+            % convert to img obj of uint32 array
+            obj.assign(uint32(obj.cdata));
+        end
+        
+        function obj = to_uint16(obj)
+            % convert to img obj of uint16 array
+            obj.assign(uint16(obj.cdata));
+        end
+        
+        function obj = to_uint8(obj)
+            % convert to img obj of uint8 array
+            obj.assign(uint8(obj.cdata));
+        end
+        
+        function obj = to_logical(obj)
+            % convert to img obj of logical array
+            obj.assign(logical(obj.cdata));
         end
         
         function obj_out = to_XYZ(obj)
@@ -1363,12 +1437,11 @@ classdef img < handle & matlab.mixin.Copyable
     end
     
     methods(Access = protected)
-%         function varargout = copyElement(varargin)
-%             % customize copy behavior
-%         end
-        
         function changed(obj, src, evnt) %#ok<INUSD>
             % change listener callback updates all assigned viewer objects
+            if isempty(obj.cdata)
+                return;
+            end
             if ~isempty(obj.viewers)
                 for vi = 1 : numel(obj.viewers)
                     obj.viewers(vi).change_image();
