@@ -228,6 +228,10 @@ classdef tonemapper < handle
             % gamma correction; by default, the resulting image is clamped
             % to [0, 1]
             
+            if isinteger(im)
+                im.to_single();
+            end
+            
             if ~isempty(varargin)
                 assert(iscell(varargin), ...
                     'parameters must be specified as name-value pairs.');

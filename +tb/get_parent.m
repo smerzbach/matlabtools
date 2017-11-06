@@ -58,7 +58,7 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
             end
         end
         
-        if isa(figure_handle, 'matlab.ui.Figure')
+        if ~isa(figure_handle, 'matlab.ui.Figure')
             error('get_parent:invalid_input', ...
                 'could not find parent figure!');
         end
