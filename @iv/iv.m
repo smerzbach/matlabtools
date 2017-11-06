@@ -57,28 +57,47 @@ classdef iv < handle
     methods(Access = public)
         function obj = iv(varargin)
             if iscell(varargin{1})
+                % all input images are provided in a cell array
                 if all(cellfun(@isnumeric, varargin{1}))
                     varargin{1} = cellfun(@(x) img(x), varargin{1}, ...
                         'UniformOutput', false);
                 end
                 varargin = [varargin{1}(:)', varargin(2 : end)];
-            elseif all(cellfun(@isnumeric, varargin))
-                varargin = cellfun(@(x) img(x), varargin, 'UniformOutput', false);
+            else
+                % convert non-image numeric ND-arrays (2 <= N <= 4) to
+                % img objects 
+                
+                % only convert those inputs that come before the first
+                % string argument to avoid converting values of
+                % parameter-value pairs
+                first_char_arg = find(cellfun(@ischar, varargin), 1);
+                im_mat_inds = cellfun(@(input) isnumeric(input) && ndims(input) >= 2 ...
+                    && ndims(input) <= 4, varargin);
+                im_mat_inds = find(im_mat_inds);
+                im_mat_inds(im_mat_inds > first_char_arg) = [];
+                varargin(im_mat_inds) = cfun(@(im) img(im), varargin(im_mat_inds));
             end
+            
+            % grab all inputs that are img objects
             img_inds = cellfun(@(x) isa(x, 'img'), varargin);
             obj.images = varargin(img_inds);
             varargin = varargin(~img_inds);
             
             % parse inputs & set / create handles
-            parent = [];
-            for ii = 1 : 2 : numel(varargin)
-                if strcmpi(varargin{ii}, 'Parent')
-                    parent = varargin{ii + 1};
-                elseif strcmpi(varargin{ii}, 'paramName')
-                    
+            [varargin, parent] = arg(varargin, 'parent', [], false);
+            if ~isempty(varargin)
+                unmatched = varargin(cellfun(@ischar, varargin));
+                unmatched = sprintf('%s, ', unmatched{:});
+                unmatched = unmatched(1 : end - 2);
+                if isempty(unmatched)
+                    classes = cfun(@(arg) class(arg), varargin);
+                    classes = sprintf('%s, ', classes{:});
+                    classes = classes(1 : end - 2);
+                    error('iv:unknown_input', ['unsupported input(s) of class: ', ...
+                        classes]);
                 else
                     error('iv:unsupported_parameter', ...
-                        'unkown parameter name %s', varargin{ii});
+                        ['unkown parameter name(s): ', unmatched]);
                 end
             end
             if isempty(parent)
