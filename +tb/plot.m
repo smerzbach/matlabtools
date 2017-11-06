@@ -25,16 +25,17 @@
 % 
 % Wrapper around plot that allows re-using existing plot handles.
 function handle = plot(handle, xdata, ydata, varargin)
-    assert(ismatrix(xdata) && ismatrix(ydata), 'input must be in a 1D or 2D array!');
+    assert(ismatrix(xdata) && ismatrix(ydata), ...
+        'input must be in a 1D or 2D array!');
     
-    [d, n] = size(ydata);
+    n = numel(ydata);
     
     if isempty(xdata)
         % default x-axis
         xdata = 1 : n;
     end
     
-    assert(size(xdata, 2) == n, 'first dimension of xdata and ydata must match!');
+    assert(numel(xdata) == n, 'number of elements in xdata and ydata must match!');
     
     % create new axes object?
     create = true;
@@ -57,11 +58,8 @@ function handle = plot(handle, xdata, ydata, varargin)
         % we have to create new plot objects
         handle = plot(xdata, ydata, 'Parent', axes_handle, varargin{:});
     else
-        for ii = 1 : d
-            % we can simply update the plot handle
-            handle(ii).XData = xdata;
-            handle(ii).YData = ydata(ii, :);
-        end
+        handle.XData = xdata;
+        handle.YData = ydata;
     end
     
     if numel(varargin)
