@@ -148,7 +148,8 @@ classdef hist_widget < handle
             if in_axis(obj.fh, obj.ah)
                 obj.sel_type = union(obj.sel_type, {obj.fh.SelectionType});
                 
-                if ismember('extend', obj.sel_type)
+                if ismember('alt', obj.sel_type)
+                    % right mouse down: start dragging range selector
                     obj.cursor_pos = obj.ah.CurrentPoint(1, 1 : 2);
                     obj.zah.update_limits = false;
                     obj.callback_motion(src, evnt);
@@ -176,7 +177,7 @@ classdef hist_widget < handle
         end
         
         function callback_motion(obj, src, evnt)
-            if ~isempty(obj.cursor_pos) && ismember('extend', obj.sel_type)
+            if ~isempty(obj.cursor_pos) && ismember('alt', obj.sel_type)
                 % right button dragged -> zoom selection
                 p1 = obj.cursor_pos(1);
                 p2 = obj.ah.CurrentPoint(1, 1);
@@ -185,11 +186,11 @@ classdef hist_widget < handle
                 if isempty(obj.ph_rect)
                     hold(obj.ah, 'on');
                     obj.ph_rect = plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
-                        [ymin, ymin, ymax, ymax, ymin], 'Color', [1, 0, 1]);
+                        [ymin, ymin, ymax, ymax, ymin], 'Color', [0, 1, 0]);
                 else
                     obj.ph_rect.Visible = 'on';
                     set(obj.ph_rect, 'XData', [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
-                        'YData', [ymin, ymin, ymax, ymax, ymin], 'Color', [1, 0, 1]);
+                        'YData', [ymin, ymin, ymax, ymax, ymin], 'Color', [0, 1, 0]);
                 end
             end
             

@@ -383,8 +383,8 @@ classdef zoomaxes < handle
         
         function callback_button_up(obj, src, evnt)
             % mouse button released
-            if ismember('alt', obj.sel_type)
-                % right button was dragged -> finish zoom selection
+            if ismember('extend', obj.sel_type)
+                % middle button was dragged -> finish zoom selection
                 pos = obj.ah.CurrentPoint(1, 1 : 2);
                 prev = obj.update_limits;
                 obj.update_limits = false;
@@ -418,48 +418,46 @@ classdef zoomaxes < handle
                 obj.dirty = false;
             end
             
-            if ~in_axis(obj.fh, obj.ah)
-                return;
-            end
-            
-            pos = obj.ah.CurrentPoint(1, 1 : 2);
-            if ~isempty(obj.cursor_pos) && ismember('normal', obj.sel_type)
-                % left button dragged -> pan
-                x_offset = obj.cursor_pos(1) - pos(1);
-                y_offset = obj.cursor_pos(2) - pos(2);
-                
-                if obj.x_pan
-                    obj.ah.XLim = obj.ah.XLim + x_offset;
+            if in_axis(obj.fh, obj.ah)
+                pos = obj.ah.CurrentPoint(1, 1 : 2);
+                if ~isempty(obj.cursor_pos) && ismember('normal', obj.sel_type)
+                    % left button dragged -> pan
+                    x_offset = obj.cursor_pos(1) - pos(1);
+                    y_offset = obj.cursor_pos(2) - pos(2);
+
+                    if obj.x_pan
+                        obj.ah.XLim = obj.ah.XLim + x_offset;
+                    end
+                    if obj.y_pan
+                        obj.ah.YLim = obj.ah.YLim + y_offset;
+                    end
                 end
-                if obj.y_pan
-                    obj.ah.YLim = obj.ah.YLim + y_offset;
+
+                if ~isempty(obj.cursor_pos) && ismember('extend', obj.sel_type)
+                    % middle button dragged -> zoom selection
+                    p1 = obj.cursor_pos;
+                    p2 = pos;
+                    prev = obj.update_limits;
+                    obj.update_limits = false;
+                    if isempty(obj.ph_rect)
+                        hold(obj.ah, 'on');
+                        obj.ph_rect = plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
+                            [p1(2), p1(2), p2(2), p2(2), p1(2)], 'Color', [1, 0, 1]);
+                    else
+                        obj.ph_rect.Visible = 'on';
+                        set(obj.ph_rect, 'XData', [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
+                            'YData', [p1(2), p1(2), p2(2), p2(2), p1(2)]);
+                    end
+                    obj.update_limits = prev;
                 end
-            end
-            
-            if ~isempty(obj.cursor_pos) && ismember('alt', obj.sel_type)
-                % right button dragged -> zoom selection
-                p1 = obj.cursor_pos;
-                p2 = pos;
-                prev = obj.update_limits;
-                obj.update_limits = false;
-                if isempty(obj.ph_rect)
-                    hold(obj.ah, 'on');
-                    obj.ph_rect = plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
-                        [p1(2), p1(2), p2(2), p2(2), p1(2)], 'Color', [1, 0, 1]);
-                else
-                    obj.ph_rect.Visible = 'on';
-                    set(obj.ph_rect, 'XData', [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
-                        'YData', [p1(2), p1(2), p2(2), p2(2), p1(2)]);
+
+                if ismember('open', obj.sel_type)
+                    % double click -> reset to original limits
+                    obj.ah.XLimMode = 'auto';
+                    obj.ah.YLimMode = 'auto';
+                    obj.xlim_orig = obj.ah.XLim;
+                    obj.ylim_orig = obj.ah.YLim;
                 end
-                obj.update_limits = prev;
-            end
-            
-            if ismember('open', obj.sel_type)
-                % double click -> reset to original limits
-                obj.ah.XLimMode = 'auto';
-                obj.ah.YLimMode = 'auto';
-                obj.xlim_orig = obj.ah.XLim;
-                obj.ylim_orig = obj.ah.YLim;
             end
             
             if ~isempty(obj.old_callback_motion)
