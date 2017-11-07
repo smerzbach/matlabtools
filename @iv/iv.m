@@ -400,6 +400,12 @@ classdef iv < handle
             switch evnt.Key
                 case 'a'
                     obj.tonemapper.autoScale(shift);
+                case 'g'
+                    obj.tonemapper.setGamma(1);
+                case 'o'
+                    obj.tonemapper.setOffset(0);
+                case 's'
+                    obj.tonemapper.setScale(1);
             end
             
             if ~isempty(obj.old_callback_key_press)

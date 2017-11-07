@@ -201,6 +201,7 @@ classdef tonemapper < handle
             if ~isempty(obj.callback)
                 obj.callback();
             end
+            obj.update_hist_widget()
         end
         
         function setGamma(obj, gamma)
@@ -209,6 +210,7 @@ classdef tonemapper < handle
             if ~isempty(obj.callback)
                 obj.callback();
             end
+            obj.update_hist_widget()
         end
         
         function setOffset(obj, offset)
@@ -217,6 +219,7 @@ classdef tonemapper < handle
             if ~isempty(obj.callback)
                 obj.callback();
             end
+            obj.update_hist_widget()
         end
         
         function autoScale(obj, robust, outlier_prctile) %#ok<INUSD>
@@ -422,6 +425,7 @@ classdef tonemapper < handle
         end
         
         function callback_hist_widget(obj, lower, upper)
+            % update the dynamic range display in the hist_widget
             obj.scale = 1 ./ (upper - lower);
             obj.offset = lower;
             obj.ui.edit_scale.String = num2str(obj.scale);
@@ -438,7 +442,6 @@ classdef tonemapper < handle
         end
         
         function callback_ui(obj, src, evnt) %#ok<INUSD>
-            hist_widget_dirty = false;
             if src == obj.ui.edit_scale
                 % scale
                 try
@@ -446,7 +449,6 @@ classdef tonemapper < handle
                 catch
                     src.String = num2str(obj.scale);
                 end
-                hist_widget_dirty = true;
             elseif src == obj.ui.edit_offset
                 % offset
                 try
@@ -454,7 +456,6 @@ classdef tonemapper < handle
                 catch
                     src.String = num2str(obj.offset);
                 end
-                hist_widget_dirty = true;
             elseif src == obj.ui.edit_gamma
                 % gamma
                 try
@@ -462,7 +463,6 @@ classdef tonemapper < handle
                 catch
                     src.String = num2str(obj.gamma);
                 end
-                hist_widget_dirty = true;
             elseif src == obj.ui.popup_method
                 % TODO
                 warning('tonemapper:not_implemented', 'not implemented yet');
@@ -490,10 +490,6 @@ classdef tonemapper < handle
             elseif src == obj.ui.cb_raw_mode
                 % raw mode
                 obj.raw_mode = src.Value;
-            end
-            
-            if hist_widget_dirty
-                obj.update_hist_widget()
             end
             
             if ~isempty(obj.callback)

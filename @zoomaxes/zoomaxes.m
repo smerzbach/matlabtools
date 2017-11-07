@@ -467,7 +467,9 @@ classdef zoomaxes < handle
         end
         
         function callback_key_press(obj, src, evnt)
-            obj.key_mods = union(obj.key_mods, {evnt.Key});
+            if ismember(evnt.Key, {'alt', 'control', 'shift'})
+                obj.key_mods = union(obj.key_mods, {evnt.Key});
+            end
             if ~isempty(obj.old_callback_key_press)
                 obj.old_callback_key_press(src, evnt);
             end
