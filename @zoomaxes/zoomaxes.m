@@ -455,6 +455,7 @@ classdef zoomaxes < handle
                     % double click -> reset to original limits
                     obj.ah.XLimMode = 'auto';
                     obj.ah.YLimMode = 'auto';
+                    axis(obj.ah, 'tight');
                     obj.xlim_orig = obj.ah.XLim;
                     obj.ylim_orig = obj.ah.YLim;
                 end

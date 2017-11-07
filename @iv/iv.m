@@ -137,6 +137,9 @@ classdef iv < handle
             
             obj.change_image();
             obj.paint();
+            
+            axis(obj.axes_handle, 'tight');
+            obj.axes_handle.Clipping = 'off';
         end
         
         function delete(obj)
@@ -391,6 +394,13 @@ classdef iv < handle
         
         function callback_key_press(obj, src, evnt)
             obj.key_mods = union(obj.key_mods, {evnt.Key});
+            
+            shift = any(ismember(obj.key_mods, {'shift'}));
+            
+            switch evnt.Key
+                case 'a'
+                    obj.tonemapper.autoScale(shift);
+            end
             
             if ~isempty(obj.old_callback_key_press)
                 obj.old_callback_key_press(src, evnt);

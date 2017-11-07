@@ -104,7 +104,7 @@ classdef hist_widget < handle
                 obj.image = img(obj.image);
             end
             
-            try
+            try %#ok<TRYNC>
                 delete(obj.hh)
             end
             
@@ -125,8 +125,19 @@ classdef hist_widget < handle
             set(obj.hh, 'EdgeColor', 'none', 'FaceAlpha', 0.25);
         end
         
-        function set_colormap(obj, map)
-            
+        function showBounds(obj, lower, upper)
+            ymin = obj.ah.YLim(1);
+            ymax = obj.ah.YLim(2);
+            if isempty(obj.ph_rect)
+                hold(obj.ah, 'on');
+                obj.ph_rect = patch(obj.ah, 'Faces', [1, 2, 3, 4], ...
+                    'XData', [lower, upper, upper, lower], ... 
+                    'YData', [ymin, ymin, ymax, ymax], 'FaceAlpha', 0.25, ...
+                    'FaceColor', [0, 1, 0], 'EdgeColor', [0, 1, 0]);
+            else
+                set(obj.ph_rect, 'XData', [lower, upper, upper, lower, lower], ...
+                    'YData', [ymin, ymin, ymax, ymax, ymin]);
+            end
         end
     end
     
@@ -163,6 +174,7 @@ classdef hist_widget < handle
         
         function callback_mouse_up(obj, src, evnt)
             if ~isempty(obj.cursor_pos) && ~isempty(obj.ph_rect)
+                % finish range selection
                 bounds = sort([obj.ph_rect.XData(1), obj.ph_rect.XData(2)]);
                 obj.callback(bounds(1), bounds(2));
             end
@@ -178,20 +190,14 @@ classdef hist_widget < handle
         
         function callback_motion(obj, src, evnt)
             if ~isempty(obj.cursor_pos) && ismember('alt', obj.sel_type)
-                % right button dragged -> zoom selection
+                % right button dragged -> range selection
                 p1 = obj.cursor_pos(1);
                 p2 = obj.ah.CurrentPoint(1, 1);
-                ymin = obj.ah.YLim(1);
-                ymax = obj.ah.YLim(2);
-                if isempty(obj.ph_rect)
-                    hold(obj.ah, 'on');
-                    obj.ph_rect = plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
-                        [ymin, ymin, ymax, ymax, ymin], 'Color', [0, 1, 0]);
-                else
-                    obj.ph_rect.Visible = 'on';
-                    set(obj.ph_rect, 'XData', [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
-                        'YData', [ymin, ymin, ymax, ymax, ymin], 'Color', [0, 1, 0]);
-                end
+                
+                obj.showBounds(p1, p2);
+                lower = min(p1, p2);
+                upper = max(p1, p2);
+                obj.callback(lower, upper);
             end
             
             if ~isempty(obj.old_callback_motion)

@@ -218,6 +218,43 @@ classdef tonemapper < handle
                 obj.callback();
             end
         end
+        
+        function autoScale(obj, robust, outlier_prctile) %#ok<INUSD>
+            % automatically select scale and offset to match the entire
+            % dynamic range to [0, 1], optionally with outlier rejection
+            robust = default('robust', false);
+            outlier_prctile = default('outlier_prctile', 0.1);
+            if isempty(obj.image)
+                return;
+            end
+            
+            channels = 1 : obj.image.nc;
+            if ~isempty(obj.selected_channels)
+                channels = obj.selected_channels;
+            end
+            values = obj.image.cdata(:, :, channels);
+            
+            if robust
+                % discard outliers by computing percentiles
+                limits = prctile(single(values(:)), ...
+                    [0, 100] + [1, -1] * outlier_prctile);
+            else
+                % min and max as limits
+                limits = single([min(values(:), [], 'omitnan'), ...
+                    max(values(:), [], 'omitnan')]);
+            end
+            
+            % ensure non-empty interval
+            if limits(1) == limits(2)
+                limits(2) = limits(1) + eps(limits(1));
+            end
+            
+            obj.setScale(1 / (limits(2) - limits(1)));
+            obj.setOffset(limits(1));
+            
+            % update hist_widget
+            obj.update_hist_widget();
+        end
     end
     
     methods(Access = protected)
@@ -246,9 +283,22 @@ classdef tonemapper < handle
             end
             
             % deal with channel numbers ~= 3
-            if im.nc == 1 && obj.raw_mode || im.is_monochrome()
+            chans = im.channel_names;
+            if ~(obj.raw_mode && im.is_monochrome()) && isempty(setdiff(chans, {'R', 'G', 'B'}))
+                % is the image alread RGB or a subset thereof?
+                im_rgb = zeros(im.h, im.w, 3, class(im.cdata));
+                m = containers.Map({'R', 'G', 'B'}, {1, 2, 3});
+                for ci = 1 : im.nc
+                    im_rgb(:, :, m(chans{ci})) = im.cdata(:, :, ci);
+                end
+                im.assign(im_rgb);
+                im.set_channel_names({'R', 'G', 'B'});
+            elseif im.nc == 1 && obj.raw_mode || im.is_monochrome()
+                % single channel image and raw mode requested -> just
+                % display as grayscale
                 im = repmat(im, 1, 1, 3);
             elseif im.is_spectral()
+                % spectral images need to be converted to RGB
                 if exist('rgb_mat', 'var')
                     % custom RGB conversion matrix
                     im = im.to_rgb(rgb_mat);
@@ -379,30 +429,43 @@ classdef tonemapper < handle
             obj.update();
         end
         
+        function update_hist_widget(obj)
+            % update hist_widget
+            range = 1 ./ obj.scale;
+            lower = obj.offset;
+            upper = lower + range;
+            obj.hist_widget.showBounds(lower, upper);
+        end
+        
         function callback_ui(obj, src, evnt) %#ok<INUSD>
+            hist_widget_dirty = false;
             if src == obj.ui.edit_scale
                 % scale
                 try
-                    obj.scale = str2double(src.String);
+                    obj.setScale(str2double(src.String));
                 catch
                     src.String = num2str(obj.scale);
                 end
+                hist_widget_dirty = true;
             elseif src == obj.ui.edit_offset
                 % offset
                 try
-                    obj.offset = str2double(src.String);
+                    obj.setOffset(str2double(src.String));
                 catch
                     src.String = num2str(obj.offset);
                 end
+                hist_widget_dirty = true;
             elseif src == obj.ui.edit_gamma
                 % gamma
                 try
-                    obj.gamma = str2double(src.String);
+                    obj.setGamma(str2double(src.String));
                 catch
                     src.String = num2str(obj.gamma);
                 end
+                hist_widget_dirty = true;
             elseif src == obj.ui.popup_method
                 % TODO
+                warning('tonemapper:not_implemented', 'not implemented yet');
             elseif src == obj.ui.lb_channels
                 % channels
                 obj.selected_channels = src.Value;
@@ -427,6 +490,10 @@ classdef tonemapper < handle
             elseif src == obj.ui.cb_raw_mode
                 % raw mode
                 obj.raw_mode = src.Value;
+            end
+            
+            if hist_widget_dirty
+                obj.update_hist_widget()
             end
             
             if ~isempty(obj.callback)
