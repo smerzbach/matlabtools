@@ -1007,7 +1007,8 @@ classdef img < handle & matlab.mixin.Copyable
         function tf = is_spectral(obj)
             % check if image is multispectral
             tf = false;
-            if ~(obj.is_monochrome() || obj.is_rgb() || obj.is_XYZ())
+            if ~(obj.is_monochrome() || obj.is_rgb() || obj.is_XYZ()) && ...
+                    all(cellfun(@isnumeric, obj.channel_names))
                 tf = true;
             end
         end
@@ -1082,7 +1083,7 @@ classdef img < handle & matlab.mixin.Copyable
             assert(iscell(channel_names), ...
                 'Channel names must be provided as a cell array.');
             assert(numel(channel_names) == size(obj.cdata, 3), ...
-                ['Number of elements in the channel names', ...
+                ['Number of elements in the channel names ', ...
                 'must match the number of image channels.']);
             obj.channel_names = channel_names;
         end
