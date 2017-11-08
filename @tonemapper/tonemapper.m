@@ -30,6 +30,8 @@ classdef tonemapper < handle
         offset = 0;
         gamma = 1;
         
+        autoscale_prctile = 0.1;
+        
         method = 'simple';
         
         clamp = true; % clamp to [0, 1] after mapping
@@ -46,6 +48,9 @@ classdef tonemapper < handle
         callback; % update displayed image(s) if the tonemapper's properties are changed
         orientation = 'horizontal';
         init_done = false;
+        
+        font_size = 8;
+        font_size_channels = 6;
     end
     
     methods(Access = public)
@@ -222,11 +227,16 @@ classdef tonemapper < handle
             obj.update_hist_widget()
         end
         
-        function autoScale(obj, robust, outlier_prctile) %#ok<INUSD>
+        function setAutoScalePercentile(obj, percentile)
+            % set outlier rejection percentile for auto scale
+            obj.autoscale_prctile = percentile;
+            obj.autoScale(true);
+        end
+        
+        function autoScale(obj, robust) %#ok<INUSD>
             % automatically select scale and offset to match the entire
             % dynamic range to [0, 1], optionally with outlier rejection
             robust = default('robust', false);
-            outlier_prctile = default('outlier_prctile', 0.1);
             if isempty(obj.image)
                 return;
             end
@@ -240,7 +250,7 @@ classdef tonemapper < handle
             if robust
                 % discard outliers by computing percentiles
                 limits = prctile(single(values(:)), ...
-                    [0, 100] + [1, -1] * outlier_prctile);
+                    [0, 100] + [1, -1] * obj.autoscale_prctile);
             else
                 % min and max as limits
                 limits = single([min(values(:), [], 'omitnan'), ...
@@ -327,7 +337,7 @@ classdef tonemapper < handle
             obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
             
             % top part of UI (scale, offset, ...)
-            obj.ui.l1_top = uix.Grid('Parent', obj.ui.l0, 'Spacing', 2);
+            obj.ui.l1_top = uix.VBox('Parent', obj.ui.l0, 'Spacing', 2, 'Padding', 1);
             
             % middle part of UI (channel selection)
             obj.ui.uip_channels = uipanel(obj.ui.l0, 'Units', 'normalized', ...
@@ -341,9 +351,8 @@ classdef tonemapper < handle
         
         function ui_layout_finalize(obj)
             % finish setting up layout
-            obj.ui.l0.Heights = [4 * 24, -1, -1];
-            obj.ui.l1_top.Widths = [75, -1];
-            obj.ui.l1_channels.Heights = [24, -1];
+            obj.ui.l0.Heights = [6 * 18, -1, -1];
+            obj.ui.l1_channels.Heights = [18, -1];
         end
         
         function ui_initialize(obj)
@@ -357,50 +366,58 @@ classdef tonemapper < handle
 %                 'Value', 1, 'Callback', @obj.callback_ui);
             
             % method
-            obj.ui.label_method = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'text', 'String', 'method', ...
-                'HorizontalAlignment', 'right');
+            obj.ui.label_method = label(obj.ui.l1_top, ...
+                {'String', 'method', 'Style', 'text', ...
+                'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
+                {'style', 'popupmenu', 'String', {'simple'}, 'Value', 1, ...
+                'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
+            obj.ui.popup_method = obj.ui.label_method.control;
             % scale
-            obj.ui.label_scale = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'text', 'String', 'scale', ...
-                'HorizontalAlignment', 'right');
+            obj.ui.label_scale = label(obj.ui.l1_top, ...
+                {'String', 'scale', 'Style', 'text', ...
+                'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
+                {'style', 'edit', 'String', num2str(obj.scale), ...
+                'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
+            obj.ui.edit_scale = obj.ui.label_scale.control;
             % offset
-            obj.ui.label_offset = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'text', 'String', 'offset', ...
-                'HorizontalAlignment', 'right');
+            obj.ui.label_offset = label(obj.ui.l1_top, ...
+                {'String', 'offset', 'Style', 'text', ...
+                'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
+                {'style', 'edit', 'String', num2str(obj.offset), ...
+                'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
+            obj.ui.edit_offset = obj.ui.label_offset.control;
             % gamma
-            obj.ui.label_gamma = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'text', 'String', 'gamma', ...
-                'HorizontalAlignment', 'right');
-            
-            % method
-            obj.ui.popup_method = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'popupmenu', 'String', {'simple'}, ...
-                'Value', 1, 'Callback', @obj.callback_ui);
-            % scale
-            obj.ui.edit_scale = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'edit', 'String', num2str(obj.scale), ...
-                'Callback', @obj.callback_ui);
-            % offset
-            obj.ui.edit_offset = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'edit', 'String', num2str(obj.offset), ...
-                'Callback', @obj.callback_ui);
-            % gamma
-            obj.ui.edit_gamma = uicontrol('Parent', obj.ui.l1_top, ...
-                'style', 'edit', 'String', num2str(obj.gamma), ...
-                'Callback', @obj.callback_ui);
+            obj.ui.label_gamma = label(obj.ui.l1_top, ...
+                {'String', 'gamma', 'Style', 'text', ...
+                'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
+                {'style', 'edit', 'String', num2str(obj.gamma), ...
+                'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
+            obj.ui.edit_gamma = obj.ui.label_gamma.control;
+            % autoscale prctile
+            obj.ui.label_autoscale_prctile = label(obj.ui.l1_top, ...
+                {'String', 'prctile', 'Style', 'text', ...
+                'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
+                {'Style', 'edit', 'String', num2str(obj.autoscale_prctile), ...
+                'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
+            obj.ui.edit_autoscale_prctile = obj.ui.label_autoscale_prctile.control;
+            % auto scale
+            obj.ui.l2_top = uix.HBox('Parent', obj.ui.l1_top);
+            uix.Empty('Parent', obj.ui.l2_top);
+            obj.ui.button_autoscale = uicontrol('Parent', obj.ui.l2_top, ...
+                'Style', 'pushbutton', 'String', 'autoscale', ...
+                'FontSize', obj.font_size, 'Callback', @obj.callback_ui);
             
             % channels
             obj.ui.l2_channels = uix.HBox('Parent', obj.ui.l1_channels);
             obj.ui.lb_channels = uicontrol('Parent', obj.ui.l1_channels, ...
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
-                'FontSize', 6);
+                'FontSize', obj.font_size_channels);
             obj.ui.pb_select_all = uicontrol(obj.ui.l2_channels, 'Units', 'normalized', ...
-                'Position', [0, 0, 1, 1], 'Style', 'pushbutton', ...
+                'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'pushbutton', ...
                 'String', 'select all', 'Callback', @obj.callback_ui);
             obj.ui.cb_raw_mode = uicontrol(obj.ui.l2_channels, 'Units', 'normalized', ...
-                'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', obj.raw_mode, ...
+                'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', obj.raw_mode, ...
                 'String', 'raw mode', 'Callback', @obj.callback_ui);
             obj.populate_channel_list();
             
@@ -438,11 +455,22 @@ classdef tonemapper < handle
             range = 1 ./ obj.scale;
             lower = obj.offset;
             upper = lower + range;
-            obj.hist_widget.showBounds(lower, upper);
+            obj.hist_widget.setLower(lower);
+            obj.hist_widget.setUpper(upper);
         end
         
         function callback_ui(obj, src, evnt) %#ok<INUSD>
-            if src == obj.ui.edit_scale
+            if src == obj.ui.button_autoscale
+                % trigger autoscale
+                obj.autoScale(true);
+            elseif src == obj.ui.edit_autoscale_prctile
+                % change autoscale percentile
+                try
+                    obj.setAutoScalePercentile(str2double(src.String));
+                catch
+                    src.String = obj.autoscale_percentile;
+                end
+            elseif src == obj.ui.edit_scale
                 % scale
                 try
                     obj.setScale(str2double(src.String));

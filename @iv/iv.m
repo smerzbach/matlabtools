@@ -102,6 +102,7 @@ classdef iv < handle
             end
             if isempty(parent)
                 parent = figure();
+                parent.Position(3 : 4) = [1000, 800];
                 parent = axes(parent);
             end
             [obj.figure_handle, obj.parent_handle, obj.axes_handle] = ...
@@ -126,7 +127,7 @@ classdef iv < handle
             obj.ui_initialize();
             
             obj.tonemapper = tonemapper('callback', @obj.paint);
-            obj.tonemapper.create_ui(obj.ui.l1_left_tab_tm);
+            obj.tonemapper.create_ui(obj.ui.l2_left_uip_tm);
             
             obj.ui_layout_finalize();
             obj.axes_handle.Position = [0, 0, 1, 1];
@@ -140,6 +141,8 @@ classdef iv < handle
             
             axis(obj.axes_handle, 'tight');
             obj.axes_handle.Clipping = 'off';
+            
+            obj.tonemapper.autoScale(true);
         end
         
         function delete(obj)
@@ -164,17 +167,22 @@ classdef iv < handle
             end
         end
         
+        function selection = get_selection(obj, inds) %#ok<INUSD>
+            % return indices of the selected images
+            inds = default('inds', 1);
+            selection = obj.selected_image(inds);
+        end
+        
+        function select_image(obj, ind)
+            % update viewers on previously selected image(s)
+            cfun(@(im) im.remove_viewer(obj), obj.images(obj.selected_image));
+            obj.selected_image = ind;
+            cfun(@(im) im.add_viewer(obj), obj.images(obj.selected_image));
+        end
+        
         function change_image(obj)
-            % update UI if another image was selected
-            for ii = 1 : obj.ni
-                obj.images{ii}.remove_viewer(obj);
-            end
+            % update UI after a new image was selected
             [im, im_comp] = obj.cur_img();
-            im.add_viewer(obj);
-            if ~isempty(im_comp)
-                im_comp.add_viewer(obj);
-            end
-            
             obj.tonemapper.callback_image_changed(im);
             
             obj.update_comparison_ui();
@@ -198,15 +206,11 @@ classdef iv < handle
             end
         end
         
-        function im = cur_frame(obj)
+        function im = cur_frame(obj, ind) %#ok<INUSD>
             % return the currently selected frame from the currently
             % selected img object
-            im = obj.images{obj.selected_image}(:, :, :, obj.selected_frame);
-        end
-        
-        function selection = get_selection(obj, inds) %#ok<INUSD>
-            inds = default('inds', 1);
-            selection = obj.selected_image(inds);
+            ind = default('ind', 1);
+            im = obj.images{obj.selected_image(ind)}(:, :, :, obj.selected_frame(ind));
         end
         
         function n = nf(obj)
@@ -245,14 +249,17 @@ classdef iv < handle
         function ui_layout(obj)
             obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent_handle, 'Spacing', 5);
             obj.ui.l1_left_tabs = uix.TabPanel('Parent', obj.ui.l0);
-            obj.ui.l1_left_tab_tm = uipanel(obj.ui.l1_left_tabs, 'Title', 'Tonemapping');
+            obj.ui.l1_left_tab_tm = uix.VBoxFlex('Parent', obj.ui.l1_left_tabs);
+            obj.ui.l2_left_uip_tm = uipanel(obj.ui.l1_left_tab_tm);
+            obj.ui.l2_left_uip_spec = uix.VBoxFlex('Parent', obj.ui.l1_left_tab_tm, 'Spacing', 5);
             obj.ui.l2_left_grid_is = uix.VBox('Parent', obj.ui.l1_left_tabs);
-            obj.ui.uip_selection = uipanel('Parent', obj.ui.l2_left_grid_is, ...
-                'Title', 'Selection');
+            obj.ui.uip_selection = uipanel('Parent', obj.ui.l2_left_grid_is);
             obj.ui.uip_comparison = uipanel('Parent', obj.ui.l2_left_grid_is, ...
                 'Title', 'Comparison', 'Visible', 'off');
             obj.ui.l3_comparison = uix.Grid('Parent', obj.ui.uip_comparison);
             obj.ui.l1_right = uix.VBox('Parent', obj.ui.l0);
+            
+            obj.ui.l1_left_tabs.TabTitles = {'tm', 'sel'};
         end
         
         function ui_layout_finalize(obj)
@@ -275,6 +282,7 @@ classdef iv < handle
             end
             
             obj.ui.l0.Widths = [obj.left_width, -1];
+            obj.ui.l1_left_tab_tm.Heights = [-3, -1];
             obj.ui.l3_comparison.Widths = [75, -1];
             obj.ui.l2_left_grid_is.Heights = [-1, 0];
         end
@@ -345,7 +353,7 @@ classdef iv < handle
         end
         
         function callback_slider_images(obj, value)
-            obj.selected_image = value;
+            obj.select_image(value);
             obj.ui.lb_images.Value = value;
             obj.change_image();
             obj.paint();
@@ -367,7 +375,7 @@ classdef iv < handle
                     warning('iv:illegal_selection', 'please select one or two images only');
                     src.Value = src.Value(1 : 2);
                 end
-                obj.selected_image = src.Value;
+                obj.select_image(src.Value);
                 obj.ui.slider_images.set_value(obj.selected_image(1));
                 obj.change_image();
                 obj.paint();

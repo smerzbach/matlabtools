@@ -32,10 +32,14 @@ classdef hist_widget < handle
         ah;
         zah;
         
+        lower = 0;
+        upper = 1;
+        
         orientation = 'horizontal';
     end
     
     properties(Access = protected)
+        layout;
         ui;
         bins;
         counts;
@@ -60,8 +64,21 @@ classdef hist_widget < handle
                 parent = figure();
             end
             
+            [varargin, obj.callback] = arg(varargin, 'callback', [], false);
+            [varargin, obj.orientation] = arg(varargin, 'orientation', 'horizontal', false);
+            
+            if ~any(strcmpi(obj.orientation, {'horizontal', 'vertical'}))
+                error('hist_widget:orientation', ['''orientation'' ', ...
+                    'must be one of ''horizontal'' or ''vertical''.']);
+            end
+            
+            if ~isempty(varargin)
+                error('hist_widget:unsupported_param', ...
+                    ['unsupported parameter name(s) ', varargin{cellfun(@ischar, varargin)}]);
+            end
+            
             obj.parent = parent;
-            obj.ah = axes(parent);
+            obj.ui_initialize();
             obj.fh = tb.get_parent(obj.ah);
             
             if ~isa(parent, 'matlab.ui.container.internal.UIContainer')
@@ -71,22 +88,6 @@ classdef hist_widget < handle
                 obj.parent.Title = 'Histogram';
             end
             
-            for ii = 1 : 2 : numel(varargin)
-                switch lower(varargin{ii})
-                    case 'callback'
-                        obj.callback = varargin{ii + 1};
-                    case 'orientation'
-                        if ~any(strcmpi(varargin{ii + 1}, {'horizontal', 'vertical'}))
-                            error('hist_widget:orientation', ['''orientation'' ', ...
-                                'must be one of ''horizontal'' or ''vertical''.']);
-                        end
-                        obj.orientation = lower(varargin{ii + 1});
-                    otherwise
-                        error('hist_widget:unsupported_param', ...
-                            'unsupported parameter name %s', varargin{ii});
-                end
-            end
-            
             obj.old_callback_mouse_down = obj.fh.WindowButtonDownFcn;
             obj.old_callback_mouse_up = obj.fh.WindowButtonUpFcn;
             obj.old_callback_motion = obj.fh.WindowButtonMotionFcn;
@@ -94,8 +95,6 @@ classdef hist_widget < handle
             obj.fh.WindowButtonDownFcn = @obj.callback_mouse_down;
             obj.fh.WindowButtonUpFcn = @obj.callback_mouse_up;
             obj.fh.WindowButtonMotionFcn = @obj.callback_motion;
-            
-            obj.ui_initialize();
         end
         
         function update(obj, varargin)
@@ -125,17 +124,30 @@ classdef hist_widget < handle
             set(obj.hh, 'EdgeColor', 'none', 'FaceAlpha', 0.25);
         end
         
-        function showBounds(obj, lower, upper)
+        function setLower(obj, lower)
+            obj.lower = lower;
+            obj.showBounds();
+            obj.ui.edit_lower.String = num2str(obj.lower);
+        end
+        
+        function setUpper(obj, upper)
+            obj.upper = upper;
+            obj.showBounds();
+            obj.ui.edit_upper.String = num2str(obj.upper);
+        end
+        
+        function showBounds(obj)
             ymin = obj.ah.YLim(1);
             ymax = obj.ah.YLim(2);
             if isempty(obj.ph_rect)
                 hold(obj.ah, 'on');
                 obj.ph_rect = patch(obj.ah, 'Faces', [1, 2, 3, 4], ...
-                    'XData', [lower, upper, upper, lower], ... 
+                    'XData', [obj.lower, obj.upper, obj.upper, obj.lower], ... 
                     'YData', [ymin, ymin, ymax, ymax], 'FaceAlpha', 0.25, ...
                     'FaceColor', [0, 1, 0], 'EdgeColor', [0, 1, 0]);
             else
-                set(obj.ph_rect, 'XData', [lower, upper, upper, lower, lower], ...
+                set(obj.ph_rect, ...
+                    'XData', [obj.lower, obj.upper, obj.upper, obj.lower, obj.lower], ...
                     'YData', [ymin, ymin, ymax, ymax, ymin]);
             end
         end
@@ -143,7 +155,28 @@ classdef hist_widget < handle
     
     methods(Access = protected)
         function ui_initialize(obj)
-            obj.zah = zoomaxes(obj.ah, 'Parent', obj.parent); %, 'Position', [0, 0, 1, 1]);
+            obj.layout.l0 = uix.VBox('Parent', obj.parent);
+            obj.layout.l1_top = uix.HBox('Parent', obj.layout.l0, 'Padding', 2);
+            
+            % lower
+            obj.ui.label_lower = label(obj.layout.l1_top, ...
+                {'Style', 'text', 'String', 'lower', ...
+                'FontSize', 8, 'HorizontalAlignment', 'right'}, ...
+                {'Style', 'edit', 'String', num2str(obj.lower), ...
+                'FontSize', 8, 'Callback', @obj.callback_ui});
+            obj.ui.edit_lower = obj.ui.label_lower.control;
+            % upper
+            obj.ui.label_upper = label(obj.layout.l1_top, ...
+                {'Style', 'text', 'String', 'upper', ...
+                'FontSize', 8, 'HorizontalAlignment', 'right'}, ...
+                {'Style', 'edit', 'String', num2str(obj.upper), ...
+                'FontSize', 8, 'Callback', @obj.callback_ui});
+            obj.ui.edit_upper = obj.ui.label_upper.control;
+            
+            % axes
+            obj.layout.uip = uipanel(obj.layout.l0, 'BorderType', 'none');
+            obj.ah = axes(obj.layout.uip, 'FontSize', 6, 'LabelFontSizeMultiplier', 1);
+            obj.zah = zoomaxes(obj.ah, 'Parent', obj.layout.uip);
             obj.zah.y_zoom = false;
             obj.zah.y_pan = false;
             if strcmpi(obj.orientation, 'vertical')
@@ -153,6 +186,9 @@ classdef hist_widget < handle
             end
             hold(obj.ah, 'on');
             obj.ah.YScale = 'log';
+            
+            % finalize layout
+            obj.layout.l0.Heights = [18, -1];
         end
         
         function callback_mouse_down(obj, src, evnt)
@@ -194,15 +230,33 @@ classdef hist_widget < handle
                 p1 = obj.cursor_pos(1);
                 p2 = obj.ah.CurrentPoint(1, 1);
                 
-                obj.showBounds(p1, p2);
-                lower = min(p1, p2);
-                upper = max(p1, p2);
-                obj.callback(lower, upper);
+                obj.setLower(min(p1, p2));
+                obj.setUpper(max(p1, p2));
+                obj.callback(obj.lower, obj.upper);
             end
             
             if ~isempty(obj.old_callback_motion)
                 obj.old_callback_motion(src, evnt);
             end
+        end
+        
+        function callback_ui(obj, src, evnt) %#ok<INUSD>
+            if src == obj.ui.edit_lower
+                % lower
+                try
+                    obj.setLower(str2double(src.String));
+                catch
+                    src.String = num2str(obj.lower);
+                end
+            elseif src == obj.ui.edit_upper
+                % upper
+                try
+                    obj.setUpper(str2double(src.String));
+                catch
+                    src.String = num2str(obj.upper);
+                end
+            end
+            obj.callback(obj.lower, obj.upper);
         end
     end
 end
