@@ -56,6 +56,9 @@ classdef hist_widget < handle
         old_callback_mouse_down;
         old_callback_mouse_up;
         old_callback_motion;
+        old_callback_scroll;
+        
+        bar_width;
     end
     
     methods(Access = public)
@@ -91,14 +94,19 @@ classdef hist_widget < handle
             obj.old_callback_mouse_down = obj.fh.WindowButtonDownFcn;
             obj.old_callback_mouse_up = obj.fh.WindowButtonUpFcn;
             obj.old_callback_motion = obj.fh.WindowButtonMotionFcn;
+            obj.old_callback_scroll = obj.fh.WindowScrollWheelFcn;
             
             obj.fh.WindowButtonDownFcn = @obj.callback_mouse_down;
             obj.fh.WindowButtonUpFcn = @obj.callback_mouse_up;
             obj.fh.WindowButtonMotionFcn = @obj.callback_motion;
+            obj.fh.WindowScrollWheelFcn = @obj.callback_scroll;
         end
         
-        function update(obj, varargin)
-            obj.image = varargin{1};
+        function update(obj, image)
+            if ~exist('image', 'var') || isempty(image)
+                image = obj.image;
+            end
+            obj.image = image;
             if ~isa(obj.image, 'img')
                 obj.image = img(obj.image);
             end
@@ -107,21 +115,40 @@ classdef hist_widget < handle
                 delete(obj.hh)
             end
             
+            num_pix = obj.getNumPixels();
+            
+            mi = min(obj.image.cdata(:), [], 'omitnan');
+            ma = max(obj.image.cdata(:), [], 'omitnan');
+            range = ma - mi;
+            
+            if isempty(obj.hh)
+                range_cur = range;
+            else
+                range_cur = obj.ah.XLim(2) - obj.ah.XLim(1);
+            end
+            
+            bar_width = 2 * range_cur / num_pix; %#ok<PROPLC>
+            num_bins = round(range / bar_width); %#ok<PROPLC>
+            num_bins = min(range, num_bins);
+            
+            [obj.counts, obj.bins] = obj.image.hist('bins', num_bins, 'channel_wise', true);
+            obj.bar_width = mean(diff(obj.bins));
+            
+            bins = obj.bins(1 : end - 1) + obj.bar_width / 2; %#ok<PROPLC>
+            obj.hh = cfun(@(h) bar(obj.ah, bins, h, ...
+                'EdgeColor', 'none', 'FaceAlpha', 0.5), obj.counts); %#ok<PROPLC>
+            obj.hh = [obj.hh{:}];
+        end
+        
+        function num = getNumPixels(obj)
+            units = obj.ah.Units;
             obj.ah.Units = 'pixels';
             if strcmpi(obj.orientation, 'horizontal')
-                num_bins = max(3, obj.ah.Position(3));
+                num = max(3, obj.ah.Position(3));
             else
-                num_bins = max(3, obj.ah.Position(4));
+                num = max(3, obj.ah.Position(4));
             end
-            obj.ah.Units = 'normalized';
-            
-            [obj.counts, obj.bins] = obj.image.hist('bins', round(num_bins / 3), 'channel_wise', true);
-%             obj.counts = cfun(@(c) log(c + 1), obj.counts);
-            bar_width = mean(diff(obj.bins));
-            bins = obj.bins(1 : end - 1) + bar_width / 2; %#ok<PROPLC>
-            obj.hh = cfun(@(h) bar(obj.ah, bins, h, 1), obj.counts); %#ok<PROPLC>
-            obj.hh = [obj.hh{:}];
-            set(obj.hh, 'EdgeColor', 'none', 'FaceAlpha', 0.25);
+            obj.ah.Units = units;
         end
         
         function setLower(obj, lower)
@@ -175,10 +202,12 @@ classdef hist_widget < handle
             
             % axes
             obj.layout.uip = uipanel(obj.layout.l0, 'BorderType', 'none');
-            obj.ah = axes(obj.layout.uip, 'FontSize', 6, 'LabelFontSizeMultiplier', 1);
+            obj.ah = axes(obj.layout.uip, 'FontSize', 6, ...
+                'LabelFontSizeMultiplier', 1, 'TickDir', 'out');
             obj.zah = zoomaxes(obj.ah, 'Parent', obj.layout.uip);
             obj.zah.y_zoom = false;
             obj.zah.y_pan = false;
+            obj.zah.x_stop_at_orig = false;
             if strcmpi(obj.orientation, 'vertical')
                 % rotate x-y axes of histogram
                 view(obj.ah, 90, 90);
@@ -238,6 +267,25 @@ classdef hist_widget < handle
             if ~isempty(obj.old_callback_motion)
                 obj.old_callback_motion(src, evnt);
             end
+        end
+        
+        function callback_scroll(obj, src, evnt)
+            % check if we need to update histogram resolution after zooming
+            % in / out
+            if ~isempty(obj.old_callback_scroll)
+                obj.old_callback_scroll(src, evnt);
+            end
+            
+            numPixels = obj.getNumPixels();
+            range = obj.ah.XLim(2) - obj.ah.XLim(1);
+            numBarsVisible = range / obj.bar_width;
+            
+            if numPixels / numBarsVisible > 5 || numPixels / numBarsVisible < 2
+                % update histogram if bar width is too large or small at
+                % current zoom level
+                obj.update();
+            end
+            
         end
         
         function callback_ui(obj, src, evnt) %#ok<INUSD>
