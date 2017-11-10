@@ -51,6 +51,7 @@ classdef tonemapper < handle
         
         font_size = 8;
         font_size_channels = 6;
+        label_width = 50;
     end
     
     methods(Access = public)
@@ -406,6 +407,10 @@ classdef tonemapper < handle
             obj.ui.button_autoscale = uicontrol('Parent', obj.ui.l2_top, ...
                 'Style', 'pushbutton', 'String', 'autoscale', ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui);
+            
+            labels = {obj.ui.label_method, obj.ui.label_scale, obj.ui.label_offset, ...
+                obj.ui.label_gamma, obj.ui.label_autoscale_prctile};
+            cfun(@(l) l.setLabelSize(obj.label_width), labels);
             
             % channels
             obj.ui.l2_channels = uix.HBox('Parent', obj.ui.l1_channels);

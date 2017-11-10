@@ -51,7 +51,7 @@ classdef iv < handle
     
     properties(Constant)
         slider_height = 65;
-        left_width = 200;
+        left_width = 275;
     end
     
     methods(Access = public)
@@ -102,7 +102,8 @@ classdef iv < handle
             end
             if isempty(parent)
                 parent = figure();
-                parent.Position(3 : 4) = [1000, 800];
+                p = parent.Position;
+                parent.Position = [p(1), p(2) - (800 - p(4)), 1000, 800];
                 parent = axes(parent);
             end
             [obj.figure_handle, obj.parent_handle, obj.axes_handle] = ...
@@ -127,7 +128,7 @@ classdef iv < handle
             obj.ui_initialize();
             
             obj.tonemapper = tonemapper('callback', @obj.paint);
-            obj.tonemapper.create_ui(obj.ui.l2_left_uip_tm);
+            obj.tonemapper.create_ui(obj.ui.l3_left_tonemapping);
             
             obj.ui_layout_finalize();
             obj.axes_handle.Position = [0, 0, 1, 1];
@@ -195,6 +196,9 @@ classdef iv < handle
             else
                 obj.ui.container_frames.Visible = 'off';
             end
+            
+            % show meta information for first selected image
+            obj.show_meta_data();
         end
         
         function [im1, im2] = cur_img(obj)
@@ -249,17 +253,23 @@ classdef iv < handle
         function ui_layout(obj)
             obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent_handle, 'Spacing', 5);
             obj.ui.l1_left_tabs = uix.TabPanel('Parent', obj.ui.l0);
-            obj.ui.l1_left_tab_tm = uix.VBoxFlex('Parent', obj.ui.l1_left_tabs);
-            obj.ui.l2_left_uip_tm = uipanel(obj.ui.l1_left_tab_tm);
-            obj.ui.l2_left_uip_spec = uix.VBoxFlex('Parent', obj.ui.l1_left_tab_tm, 'Spacing', 5);
-            obj.ui.l2_left_grid_is = uix.VBox('Parent', obj.ui.l1_left_tabs);
-            obj.ui.uip_selection = uipanel('Parent', obj.ui.l2_left_grid_is);
-            obj.ui.uip_comparison = uipanel('Parent', obj.ui.l2_left_grid_is, ...
-                'Title', 'Comparison', 'Visible', 'off');
-            obj.ui.l3_comparison = uix.Grid('Parent', obj.ui.uip_comparison);
             obj.ui.l1_right = uix.VBox('Parent', obj.ui.l0);
+            obj.ui.l2_left_meta = uix.VBoxFlex('Parent', obj.ui.l1_left_tabs);
+            % container for tonemapping widget (including hist_widget)
+            obj.ui.l3_left_tonemapping = uipanel(obj.ui.l2_left_meta);
+            % container for pixel info
+            obj.ui.l3_left_pixel_info = uix.VBoxFlex('Parent', obj.ui.l2_left_meta, 'Spacing', 5);
+            % image selection container
+            obj.ui.l2_left_selection = uix.VBox('Parent', obj.ui.l1_left_tabs);
+            obj.ui.l3_left_selection_uip = uipanel('Parent', obj.ui.l2_left_selection);
+            obj.ui.l3_left_comparison_uip = uipanel('Parent', obj.ui.l2_left_selection, ...
+                'Title', 'Comparison', 'Visible', 'off');
+            obj.ui.l4_left_comparison = uix.Grid('Parent', obj.ui.l3_left_comparison_uip);
             
-            obj.ui.l1_left_tabs.TabTitles = {'tm', 'sel'};
+            obj.ui.l1_left_tabs.TabTitles = {'meta', 'selection'};
+            obj.ui.l1_left_tabs.TabWidth = 75;
+            obj.ui.l1_left_tabs.FontSize = 8;
+            obj.ui.l1_left_tabs.TabLocation = 'bottom';
         end
         
         function ui_layout_finalize(obj)
@@ -282,28 +292,28 @@ classdef iv < handle
             end
             
             obj.ui.l0.Widths = [obj.left_width, -1];
-            obj.ui.l1_left_tab_tm.Heights = [-3, -1];
-            obj.ui.l3_comparison.Widths = [75, -1];
-            obj.ui.l2_left_grid_is.Heights = [-1, 0];
+            obj.ui.l2_left_meta.Heights = [-3, -1];
+            obj.ui.l4_left_comparison.Widths = [75, -1];
+            obj.ui.l2_left_selection.Heights = [-1, 0];
         end
         
         function ui_initialize(obj)
             % image selection list
-            obj.ui.lb_images = uicontrol('Parent', obj.ui.uip_selection, ...
+            obj.ui.lb_images = uicontrol('Parent', obj.ui.l3_left_selection_uip, ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
                 'FontSize', 6, 'Units', 'normalized', 'Position', [0, 0, 1, 1]);
             obj.populate_image_list();
             
             % image comparison UI
-            obj.ui.label_comparison_method = uicontrol('Parent', obj.ui.l3_comparison, ...
+            obj.ui.label_comparison_method = uicontrol('Parent', obj.ui.l4_left_comparison, ...
                 'Style', 'text', 'String', 'method');
-            obj.ui.label_comparison_cmap = uicontrol('Parent', obj.ui.l3_comparison, ...
+            obj.ui.label_comparison_cmap = uicontrol('Parent', obj.ui.l4_left_comparison, ...
                 'Style', 'text', 'String', 'cmap');
-            obj.ui.popup_comparison_method = uicontrol('Parent', obj.ui.l3_comparison, ...
+            obj.ui.popup_comparison_method = uicontrol('Parent', obj.ui.l4_left_comparison, ...
                 'Style', 'popupmenu', 'String', {'sliding', 'horzcat', 'vertcat', ...
                 'A - B', 'B - A', 'abs(A - B)', 'RMSE', 'NRMSE', 'MAD'}, ...
                 'Callback', @obj.callback_ui);
-            obj.ui.popup_comparison_cmap = uicontrol('Parent', obj.ui.l3_comparison, ...
+            obj.ui.popup_comparison_cmap = uicontrol('Parent', obj.ui.l4_left_comparison, ...
                 'Style', 'popupmenu', 'String', {'parula', 'jet', 'hsv', 'hot', ...
                 'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', ...
                 'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag'}, ...
@@ -328,6 +338,19 @@ classdef iv < handle
                 'PaintTickLabels', true, 'MinorTickSpacing', 1, 'MajorTickSpacing', 10, ...
                 'continuous', false, 'Callback', @obj.callback_slider_frames, ...
                 'Position', [0, 0, 1, 1], 'Units', 'normalized');
+            
+            % pixel info & meta data
+            obj.ui.label_meta = uicontrol(obj.ui.l3_left_pixel_info, ...
+                'Style', 'edit', 'FontSize', 6, 'FontName', 'MonoSpaced', ...
+                'HorizontalAlignment', 'left', 'Enable', 'inactive', ...
+                'Min', 0, 'Max', 2);
+        end
+        
+        function show_meta_data(obj)
+            % display some meta data about the image
+            im = obj.cur_img();
+            str = string(im);
+            obj.ui.label_meta.String = str;
         end
         
         function populate_image_list(obj)
@@ -344,11 +367,11 @@ classdef iv < handle
         function update_comparison_ui(obj)
             % show comparison UI if two images are selected
             if numel(obj.selected_image) == 2
-                obj.ui.uip_comparison.Visible = 'on';
-                obj.ui.l2_left_grid_is.Heights = [-1, 2 * 30 + 10];
+                obj.ui.l3_left_comparison_uip.Visible = 'on';
+                obj.ui.l2_left_selection.Heights = [-1, 2 * 30 + 10];
             else
-                obj.ui.uip_comparison.Visible = 'off';
-                obj.ui.l2_left_grid_is.Heights = [-1, 0];
+                obj.ui.l3_left_comparison_uip.Visible = 'off';
+                obj.ui.l2_left_selection.Heights = [-1, 0];
             end
         end
         
