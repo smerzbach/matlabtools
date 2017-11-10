@@ -789,6 +789,115 @@ classdef img < handle & matlab.mixin.Copyable
             output = obj.interp(subs{:});
         end
         
+        function output = linref(obj, ys, xs, cs, fs) %#ok<INUSD>
+            % refer to image elements with linear indexing in the x and y
+            % coordinates, i.e. instead of forming the cartesian product of
+            % all x and y coordinates, this function computes linear
+            % indices in the xy-dimension. color channels and frames act as
+            % usual, i.e. we form the cartesian product over those
+            % dimensions.
+            %
+            % this method is also called when an img object is indexed
+            % with cell arrays
+            s = obj.size4();
+            cs = default('cs', 1 : s(3));
+            fs = default('fs', 1 : s(4));
+            
+            nxy = numel(xs);
+            nc = numel(cs);
+            nf = numel(fs);
+            
+            ys = ys(:);
+            xs = xs(:);
+            cs = reshape(cs, 1, 1, [], 1);
+            fs = reshape(fs, 1, 1, 1, []);
+            
+            assert(numel(xs) == numel(ys), 'img:invalid_input', ...
+                'xs and ys must have the same size.');
+            
+            xs = repmat(xs, 1, 1, nc, nf);
+            ys = repmat(ys, 1, 1, nc, nf);
+            cs = repmat(cs, nxy, 1, 1, nf);
+            fs = repmat(fs, nxy, 1, nc, 1);
+            
+            linds = sub2ind(s, ys, xs, cs, fs);
+            output = obj.cdata(linds);
+        end
+        
+        function output = linasgn(obj, varargin)
+            % assign image elements with linear indexing in the x and y
+            % coordinates, i.e. instead of forming the cartesian product of
+            % all x and y coordinates, this function computes linear
+            % indices in the xy-dimension. color channels and frames act as
+            % usual, i.e. we form the cartesian product over those
+            % dimensions. the last argument is the assignment, which has to
+            % match the number of specified coordinates (times the number
+            % of channel indices times the number of frame indices). if it
+            % only matches the number of xy coordinates, it is replicated
+            % along the channel and frame dimensions.
+            %
+            % this method is also called when an img object is indexed
+            % with cell arrays
+            assignment = varargin{end};
+            varargin(end) = [];
+            
+            s = obj.size4();
+            ys = varargin{1};
+            xs = varargin{2};
+            varargin(1 : 2) = [];
+            if numel(varargin)
+                cs = varargin{1};
+                varargin(1) = [];
+            else
+                cs = 1 : s(3);
+            end
+            if numel(varargin)
+                fs = varargin{1};
+                varargin(1) = [];
+            else
+                fs = 1 : s(4);
+            end
+            assert(isempty(varargin), 'img:invalid_input', ...
+                ['input must be between two and four coordinate ', ...
+                'arrays and one assignment.']);
+            
+            nxy = numel(xs);
+            nc = numel(cs);
+            nf = numel(fs);
+            
+            ys = ys(:);
+            xs = xs(:);
+            cs = reshape(cs, 1, 1, [], 1);
+            fs = reshape(fs, 1, 1, 1, []);
+            
+            assert(numel(xs) == numel(ys), 'img:invalid_input', ...
+                'xs and ys must have the same size.');
+            
+            xs = repmat(xs, 1, 1, nc, nf);
+            ys = repmat(ys, 1, 1, nc, nf);
+            cs = repmat(cs, nxy, 1, 1, nf);
+            fs = repmat(fs, nxy, 1, nc, 1);
+            
+            assignment = assignment(:);
+            if numel(assignment) == nxy
+                assignment = repmat(assignment, 1, 1, nc, nf);
+            elseif numel(assignment) == nxy * nc
+                assignment = repmat(assignment, 1, 1, 1, nf);
+            elseif numel(assignment) ~= nxy * nc * nf
+                error('img:invalid_input', ['number of elements in assignment ', ...
+                    'must match the coordinates']);
+            end
+            
+            linds = sub2ind(s, ys, xs, cs, fs);
+            
+            if nargout
+                output = obj.copy();
+            else
+                output = obj;
+            end
+            output.cdata(linds) = assignment;
+        end
+        
         function obj = subsasgn(obj, S, assignment)
             % Subscripted assignment via '()', '{}' or '.' for property
             % access.
