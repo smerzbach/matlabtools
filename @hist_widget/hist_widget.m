@@ -129,7 +129,8 @@ classdef hist_widget < handle
             
             bar_width = 2 * range_cur / num_pix; %#ok<PROPLC>
             num_bins = round(range / bar_width); %#ok<PROPLC>
-            num_bins = min(range, num_bins);
+            num_bins = min(1000, max(2, num_bins));
+            num_bins = min(num_bins, max(2, round(numel(obj.image.cdata) / 10)));
             
             [obj.counts, obj.bins] = obj.image.hist('bins', num_bins, 'channel_wise', true);
             obj.bar_width = mean(diff(obj.bins));
