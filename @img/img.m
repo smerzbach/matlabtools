@@ -1209,6 +1209,32 @@ classdef img < handle & matlab.mixin.Copyable
             obj.assign(logical(obj.cdata));
         end
         
+        function str = string(obj)
+            % get string representation of image object
+            props = properties(obj);
+            
+            inds = cellfun(@(p) any(strcmp({'interpolate', 'extrapolate', ...
+                'interpolation_method', 'extrapolation_method', 'user', 'name'}, p)), props);
+            props = props(~inds);
+            if ~isempty(obj.name)
+                props = [{'name'}; props];
+            end
+            
+            vals = cfun(@(p) {obj.(p)}, props);
+            pvs = [props(:)'; vals(:)'];
+            prop_list = struct(pvs{:}); %#ok<NASGU>
+            str = evalc('disp(prop_list)');
+            
+            if ~isempty(obj.user)
+                indent = regexp(str, '(\s+)cdata: ', 'tokens');
+                str = sprintf('%s%s user:\n', str(1 : end - 1), indent{1}{1});
+                str = [str, evalc('disp(obj.user)')];
+            end
+            
+            str = strrep(str, sprintf('\n    '), sprintf('\n'));
+            str = str(5 : end);
+        end
+        
         function obj_out = to_XYZ(obj)
             % convert image to CIE XYZ color space
             if obj.is_rgb()
