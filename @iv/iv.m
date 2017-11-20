@@ -74,7 +74,9 @@ classdef iv < handle
                 im_mat_inds = cellfun(@(input) isnumeric(input) && ndims(input) >= 2 ...
                     && ndims(input) <= 4, varargin);
                 im_mat_inds = find(im_mat_inds);
-                im_mat_inds(im_mat_inds > first_char_arg) = [];
+                if ~isempty(first_char_arg)
+                    im_mat_inds(im_mat_inds > first_char_arg) = [];
+                end
                 varargin(im_mat_inds) = cfun(@(im) img(im), varargin(im_mat_inds));
             end
             
@@ -137,12 +139,13 @@ classdef iv < handle
             % destroyed
             obj.figure_handle.DeleteFcn = @obj.cleanup;
             
+            obj.select_image(obj.selected_image);
             obj.change_image();
-            obj.paint();
             
             axis(obj.axes_handle, 'tight');
             obj.axes_handle.Clipping = 'off';
             
+            % auto compute dynamic range to display & paint
             obj.tonemapper.autoScale(true);
         end
         
@@ -175,7 +178,8 @@ classdef iv < handle
         end
         
         function select_image(obj, ind)
-            % update viewers on previously selected image(s)
+            % remove viewer from previously selected image(s) and update it
+            % on the newly selected one(s)
             cfun(@(im) im.remove_viewer(obj), obj.images(obj.selected_image));
             obj.selected_image = ind;
             cfun(@(im) im.add_viewer(obj), obj.images(obj.selected_image));
