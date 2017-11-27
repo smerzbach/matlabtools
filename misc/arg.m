@@ -68,11 +68,12 @@ function [args, varargout] = arg(args, names, defaults, match_case) %#ok<INUSD>
     
     if match_case
         matching = find(cellfun(@(name) any(strcmp(name, args(1 : 2 : end))), names));
+        inds = cellfun(@(name) find(strcmp(name, args), 1), names(matching));
     else
         matching = find(cellfun(@(name) any(strcmpi(name, args(1 : 2 : end))), names));
+        inds = cellfun(@(name) find(strcmpi(name, args), 1), names(matching));
     end
     
-    inds = cellfun(@(name) find(strcmp(name, args), 1), names(matching));
     if any(inds + 1 > numel(args))
         error('arg:invalid_input', 'input must contain name-value-pairs');
     end
