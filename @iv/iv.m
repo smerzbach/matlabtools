@@ -147,10 +147,10 @@ classdef iv < handle
             obj.change_image();
             
             axis(obj.axes_handle, 'tight');
-            obj.axes_handle.Clipping = 'off';
             
             % auto compute dynamic range to display & paint
             obj.tonemapper.autoScale(true);
+            obj.axes_handle.Clipping = 'off';
         end
         
         function delete(obj)

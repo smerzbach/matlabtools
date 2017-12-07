@@ -100,6 +100,9 @@ classdef tonemapper < handle
                 im = img(im);
             end
             
+            im = im.copy();
+            im.remove_all_viewers();
+            
             if ~isempty(obj.selected_channels)
                 im = im(:, :, obj.selected_channels);
                 if ~isempty(varargin)
@@ -148,7 +151,8 @@ classdef tonemapper < handle
         
         function callback_image_changed(obj, im)
             % update UI
-            obj.image = im;
+            obj.image = im.copy();
+            obj.image.remove_all_viewers();
             
             if ~isa(obj.image, 'img')
                 obj.image = img(obj.image);
@@ -164,7 +168,7 @@ classdef tonemapper < handle
             if obj.image.is_spectral()
                 % integers cannot be converted to RGB
                 if isinteger(obj.image.cdata)
-                    obj.image.assign(single(obj.image));
+                    obj.image.to_single();
                 end
                 im = obj.image.to_rgb();
             else
@@ -272,6 +276,46 @@ classdef tonemapper < handle
     end
     
     methods(Access = protected)
+        function im = get_displayable_img(obj, im, rgb_mat) %#ok<INUSD>
+            % try to convert whatever kind of input image into a 3 channel
+            % image for display
+            rgb_mat = default('rgb_mat', []);
+            % deal with channel numbers ~= 3
+            chans = im.channel_names;
+            if ~(obj.raw_mode && im.is_monochrome()) && isempty(setdiff({'R', 'G', 'B'}, chans))
+                % is the image alread RGB or a subset thereof?
+                im = im.to_rgb();
+            elseif im.nc == 1 && obj.raw_mode || im.is_monochrome()
+                % single channel image and raw mode requested -> just
+                % display as grayscale
+                im = repmat(im, 1, 1, 3);
+                im.set_channel_names('RGB');
+            elseif im.is_spectral()
+                % spectral images need to be converted to RGB
+                % custom RGB conversion matrix
+                im = im.to_rgb(rgb_mat);
+            elseif im.nc ~= 3
+                if isempty(setdiff(chans, {'R', 'G', 'B'}))
+                    % image only has a subset of RGB as channels -> fill in
+                    % the missing channels with zeroes
+                    [inds_out, inds] = ismember({'R', 'G', 'B'}, im.channel_names);
+                    missing = find(inds == 0);
+                    im_channels = cell(1, 1, 3);
+                    im_channels(inds_out) = ims2cell(im.cdata, 3);
+                    im_channels(missing) = repmat({zeros(im.h, im.w, 1, im.nf, class(im.cdata))}, ...
+                        1, 1, numel(missing));
+                    im.cdata = cat(3, im_channels{:});
+                    im.set_channel_names('RGB');
+                end
+                try
+                    im = im.to_rgb();
+                catch
+                    error('tonemapper:unsupported_channels', ...
+                        'unsupported number of channels (%d).', im.nc);
+                end
+            end
+        end
+        
         function im = tonemap_simple(obj, im, varargin)
             % given an image with arbitrarily high dynamic range and
             % potentially multispectral data, this method converts to RGB
@@ -283,53 +327,17 @@ classdef tonemapper < handle
                 im.to_single();
             end
             
-            if ~isempty(varargin)
-                assert(iscell(varargin), ...
-                    'parameters must be specified as name-value pairs.');
-                for ii = 1 : numel(varargin)
-                    if ischar(varargin{ii})
-                        switch lower(varargin{ii})
-                            case 'rgb_mat'
-                                rgb_mat = varargin{ii + 1};
-                        end
-                    end
-                end
-            end
+            [varargin, rgb_mat] = arg(varargin, 'rgb_mat', [], false); %#ok<ASGLU>
             
             % deal with channel numbers ~= 3
-            chans = im.channel_names;
-            if ~(obj.raw_mode && im.is_monochrome()) && isempty(setdiff(chans, {'R', 'G', 'B'}))
-                % is the image alread RGB or a subset thereof?
-                im_rgb = zeros(im.h, im.w, 3, class(im.cdata));
-                m = containers.Map({'R', 'G', 'B'}, {1, 2, 3});
-                for ci = 1 : im.nc
-                    im_rgb(:, :, m(chans{ci})) = im.cdata(:, :, ci);
-                end
-                im.assign(im_rgb);
-                im.set_channel_names({'R', 'G', 'B'});
-            elseif im.nc == 1 && obj.raw_mode || im.is_monochrome()
-                % single channel image and raw mode requested -> just
-                % display as grayscale
-                im = repmat(im, 1, 1, 3);
-            elseif im.is_spectral()
-                % spectral images need to be converted to RGB
-                if exist('rgb_mat', 'var')
-                    % custom RGB conversion matrix
-                    im = im.to_rgb(rgb_mat);
-                else
-                    im = im.to_rgb();
-                end
-            elseif im.nc ~= 3
-                error('tonemapper:unsupported_channels', ...
-                    'unsupported number of channels (%d).', im.nc);
-            end
+            im = obj.get_displayable_img(im, rgb_mat);
             
             % todo: allow mapping negative values with gamma
-            im = obj.scale * tb.clamp(im - obj.offset, 0, inf);
+            im = obj.scale * clamp(im - obj.offset, 0, inf); %#ok<CPROPLC>
             im = im .^ (1. / obj.gamma);
             
             if obj.clamp
-                im = tb.clamp(im, 0, 1);
+                im = im.clamp(0, 1);
             end
         end
         
@@ -501,9 +509,11 @@ classdef tonemapper < handle
                 warning('tonemapper:not_implemented', 'not implemented yet');
             elseif src == obj.ui.lb_channels
                 % channels
-                obj.selected_channels = src.Value;
-                
-                obj.hist_widget.update(obj.image(:, :, obj.selected_channels));
+                if ~isempty(src.Value)
+                    obj.selected_channels = src.Value;
+
+                    obj.hist_widget.update(obj.image(:, :, obj.selected_channels));
+                end
                 
                 if numel(obj.selected_channels) == 1
                     obj.ui.cb_raw_mode.Enable = 'on';
