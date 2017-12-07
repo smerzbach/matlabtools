@@ -62,7 +62,7 @@ classdef img < handle & matlab.mixin.Copyable
             % should be H x W x C x F, where H is height, W is width, C is
             % the number of channels and optionally F the number of frames.
             if nargin
-                if isnumeric(varargin{1})
+                if isnumeric(varargin{1}) || islogical(varargin{1})
                     obj.cdata = varargin{1};
                 elseif isa(varargin{1}, 'img')
                     % using handle.copy() here prevents subclassing img -_-
@@ -122,6 +122,14 @@ classdef img < handle & matlab.mixin.Copyable
                 end
             end
             
+            % reorder RGB channels if they exist (e.g. BGR -> RGB)
+            if all(cellfun(@ischar, obj.channel_names)) && ...
+                    isempty(setdiff({'R', 'G', 'B'}, obj.channel_names))
+                inds_from = cellfun(@(c) find(strcmp(obj.channel_names, c), 1), {'R', 'G', 'B'});
+                inds_from = [inds_from, setdiff(1 : obj.num_channels, inds_from)];
+                obj.cdata = obj.cdata(:, :, inds_from, :);
+                obj.set_channel_names(obj.channel_names(inds_from));
+            end
             obj.listener_handle = addlistener(obj, 'cdata', 'PostSet', @obj.changed);
         end
         
@@ -1116,8 +1124,10 @@ classdef img < handle & matlab.mixin.Copyable
         function tf = is_spectral(obj)
             % check if image is multispectral
             tf = false;
-            if ~(obj.is_monochrome() || obj.is_rgb() || obj.is_XYZ()) && ...
-                    all(cellfun(@isnumeric, obj.channel_names))
+            if ~(obj.is_monochrome() || obj.is_rgb() || obj.is_XYZ()) ...
+                || any(cellfun(@isnumeric, obj.channel_names)) ...
+                || any(~isnan(str2double(obj.channel_names)))
+                
                 tf = true;
             end
         end
@@ -1189,12 +1199,16 @@ classdef img < handle & matlab.mixin.Copyable
         
         function set_channel_names(obj, channel_names)
             % update the image's channel names
+            if ~iscell(channel_names) && ischar(channel_names) && ...
+                    numel(channel_names) == obj.num_channels
+                channel_names = num2cell(channel_names);
+            end
             assert(iscell(channel_names), ...
                 'Channel names must be provided as a cell array.');
             assert(numel(channel_names) == size(obj.cdata, 3), ...
                 ['Number of elements in the channel names ', ...
                 'must match the number of image channels.']);
-            obj.channel_names = channel_names;
+            obj.channel_names = channel_names(:)';
         end
         
         function name = get_name(obj)
@@ -1547,6 +1561,10 @@ classdef img < handle & matlab.mixin.Copyable
         function remove_viewer(obj, v)
             % remove a viewer object from the set of active viewers
             obj.viewers = setdiff(obj.viewers, v);
+        end
+        
+        function remove_all_viewers(obj)
+            obj.viewers = [];
         end
         
 %% TODO 
