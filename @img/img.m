@@ -893,9 +893,12 @@ classdef img < handle & matlab.mixin.Copyable
             output.cdata(linds) = assignment;
         end
         
-        function values = interp(obj, ys, xs, channels, frames)
+        function values = interp(obj, ys, xs, channels, frames) %#ok<INUSD>
             % multi-linear interpolation on the image data
             obj.update_interpolant();
+            
+            channels = default('channels', 1);
+            frames = default('frames', 1);
             
             [ys, xs, channels, frames] = obj.char_subs_to_linds(ys, xs, channels, frames);
             
@@ -908,7 +911,7 @@ classdef img < handle & matlab.mixin.Copyable
                 xs = repmat(xs, 1, numel(channels));
                 channels = repmat(channels(:)', nx, 1);
                 values = obj.interpolant(ys(:), xs(:), channels(:));
-                values = reshape(values, [], nc)';
+                values = reshape(values, [], nc);
             elseif obj.num_channels == 1 && obj.num_frames > 1
                 values = obj.interpolant({ys, xs, frames});
             else
@@ -927,7 +930,7 @@ classdef img < handle & matlab.mixin.Copyable
                 % interpolation object
                 % we can only interpolate along those dimensions which have
                 % the necessary number of samples
-                sampling = cfun(@(s) 1 : s, s(s > 1));
+                sampling = cfun(@(s) 1 : s, num2cell(s(s > 1)));
                 values = squeeze(obj.cdata);
                 obj.interpolant = griddedInterpolant(sampling, values, ...
                     'linear', 'none');
