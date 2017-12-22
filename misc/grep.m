@@ -23,20 +23,10 @@
 % *
 % *************************************************************************
 %
-% Get directory listing without '.' and '..'.
-function listing = dir_no_dots(input, as_struct, absolute) %#ok<INUSD>
-    as_struct = default('as_struct', false);
-    absolute = default('absolute', true);
-    
-    listing = dir(input);
-    dots = grep({listing.name}, '^\.{1,2}$');
-    listing = listing(~dots);
-    
-    if ~as_struct
-        if absolute
-            listing = cfun(@(s) fullfile(s.folder, s.name), num2cell(listing));
-        else
-            listing = {listing.name}';
-        end
-    end
+% Given a cell array of strings, this function tries to match a regular
+% expression for each of them and returns a boolean array that can be used
+% for logical indexing.
+function [matching, tokens] = grep(strings, pattern)
+    tokens = regexp(strings, pattern, 'tokens');
+    matching = ~cellfun(@isempty, tokens);
 end
