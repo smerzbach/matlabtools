@@ -33,10 +33,12 @@
 %   half precision floats)
 % - channel_names is a cell array of strings holding the names of each
 %   channel
-function [im, channel_names] = exr_read(fname, requested_pixel_type) %#ok<INUSD>
+function [im, channel_names] = exr_read(fname, requested_pixel_type, as_img) %#ok<INUSD>
     mex_auto('sources', {'exr_read_mex.cpp'}, 'headers', {'tinyexr.h'});
     
     requested_pixel_type = default('requested_pixel_type', 'single');
+    as_img = default('as_img', false);
+    
     switch lower(requested_pixel_type)
         case 'uint'
             requested_pixel_type = 0;
@@ -49,9 +51,10 @@ function [im, channel_names] = exr_read(fname, requested_pixel_type) %#ok<INUSD>
                 'requested_pixel_type must be one of ''uint'', ''half'' or ''single''.');
     end
     
-    if nargout == 1
-        im = exr_read_mex(fname, requested_pixel_type);
-    else
-        [im, channel_names] = exr_read_mex(fname, requested_pixel_type);
+    [im, channel_names] = exr_read_mex(fname, requested_pixel_type);
+    
+    if as_img
+        im = img(im, 'wls', channel_names);
+        im.storeUserData(struct('filename', fname));
     end
 end
