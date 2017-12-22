@@ -321,7 +321,7 @@ classdef img < handle & matlab.mixin.Copyable
             if isa(input, 'img')
                 tmp = obj;
                 obj = input;
-                input = tmp';
+                input = tmp;
             end
             
             if ~isa(input, 'img')

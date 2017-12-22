@@ -463,13 +463,13 @@ classdef iv < handle
         function callback_scroll(obj, src, evnt)
             if in_axis(obj.figure_handle, obj.axes_handle)
                 sc = evnt.VerticalScrollCount;
-                if ismember(obj.key_mods, {'control'})
+                if any(ismember(obj.key_mods, {'control'}))
                     if sc < 0 % wheel up
                         obj.tonemapper.setScale(obj.tonemapper.scale * 1.1 ^ -sc);
                     else % wheel down
                         obj.tonemapper.setScale(obj.tonemapper.scale / 1.1 ^ sc);
                     end
-                elseif ismember(obj.key_mods, {'shift'})
+                elseif any(ismember(obj.key_mods, {'shift'}))
                     if sc < 0 % wheel up
                         obj.tonemapper.setGamma(obj.tonemapper.gamma * 1.1 ^ -sc);
                     else % wheel down
