@@ -262,7 +262,7 @@ classdef iv < handle
             obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent_handle, 'Spacing', 5);
             obj.ui.l1_left_tabs = uix.TabPanel('Parent', obj.ui.l0);
             obj.ui.l1_right = uix.VBox('Parent', obj.ui.l0);
-            obj.ui.l2_left_meta = uix.VBoxFlex('Parent', obj.ui.l1_left_tabs);
+            obj.ui.l2_left_meta = uix.VBoxFlex('Parent', obj.ui.l1_left_tabs, 'Spacing', 5);
             % container for tonemapping widget (including hist_widget)
             obj.ui.l3_left_tonemapping = uipanel(obj.ui.l2_left_meta);
             % container for pixel info
