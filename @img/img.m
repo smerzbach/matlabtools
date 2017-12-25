@@ -147,7 +147,38 @@ classdef img < handle & matlab.mixin.Copyable
             end
             obj_copy.interpolant_dirty = true;
         end
-        
+    end
+    
+    %% customized (un)serialization methods
+    methods
+        function s = saveobj(obj)
+            % given an img object, this function stores all the data in a
+            % struct for storage in a mat file; volatile data like viewer
+            % handles are not stored
+            mc = metaclass(obj);
+            props = {mc.PropertyList.Name}';
+            props = setdiff(props, {'viewers'});
+            s = struct();
+            for ii = 1 : numel(props)
+                s.(props{ii}) = obj.(props{ii});
+            end
+        end
+    end
+    
+    methods(Static)
+        function obj = loadobj(s)
+            % given a struct stored in a mat file, this function
+            % reconstructs an img object
+            obj = img(s.cdata, 'wls', s.channel_names);
+            fns = fieldnames(s);
+            fns = setdiff(fns, {'cdata', 'channel_names'});
+            for ii = 1 : numel(fns)
+                obj.(fns{ii}) = s.(fns{ii});
+            end
+        end
+    end
+    
+    methods(Access = public)
         function obj_out = horzcat(varargin)
             % horizontal concatenation [i1, i2, i3, ...] of img objects and
             % / or numeric arrays
