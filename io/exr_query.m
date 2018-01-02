@@ -38,7 +38,7 @@
 % - comments: a string with the contents of a custom header attribute
 %   called comments, if available
 function meta = exr_query(fname)
-    utils.mex_auto();
+    mex_auto();
     
     meta = exr_query_mex(fname);
 end
