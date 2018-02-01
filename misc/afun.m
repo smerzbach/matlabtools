@@ -26,6 +26,15 @@
 % Simple wrapper for arrayfun calling it with the annoying UniformOutput
 % argument. Usage is exactly like arrayfun otherwise.
 function varargout = afun(varargin)
-    varargout = cell(nargout, 1);
-    [varargout{:}] = arrayfun(varargin{:}, 'UniformOutput', false);
+    varargout = cell(max(1, nargout), 1);
+    try
+        % enforce at least one output argument in case cfun is called as a
+        % statement on the command prompt
+        [varargout{:}] = arrayfun(varargin{:}, 'UniformOutput', false);
+    catch
+        % if the above fails for functions without return arguments, try
+        % again
+        varargout = {};
+        arrayfun(varargin{:}, 'UniformOutput', false);
+    end
 end

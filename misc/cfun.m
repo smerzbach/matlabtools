@@ -26,6 +26,15 @@
 % Simple wrapper for cellfun calling it with the annoying UniformOutput
 % argument. Usage is exactly like cellfun otherwise.
 function varargout = cfun(varargin)
-    varargout = cell(nargout, 1);
-    [varargout{:}] = cellfun(varargin{:}, 'UniformOutput', false);
+    varargout = cell(max(1, nargout), 1);
+    try
+        % enforce at least one output argument in case cfun is called as a
+        % statement on the command prompt
+        [varargout{:}] = cellfun(varargin{:}, 'UniformOutput', false);
+    catch
+        % if the above fails for functions without return arguments, try
+        % again
+        varargout = {};
+        cellfun(varargin{:}, 'UniformOutput', false);
+    end
 end
