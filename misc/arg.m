@@ -46,8 +46,8 @@
 % c =
 %      0
 function [args, varargout] = arg(args, names, defaults, match_case) %#ok<INUSD>
-    if ~iscell(args)
-        error('arg:invalid_input', 'first input must be cell array');
+    if ~iscell(args) && ~isstruct(args)
+        error('arg:invalid_input', 'first input must be cell array or struct');
     end
     
     if ~iscell(names)
@@ -66,16 +66,33 @@ function [args, varargout] = arg(args, names, defaults, match_case) %#ok<INUSD>
     
     match_case = default('match_case', true);
     
-    if match_case
-        matching = find(cellfun(@(name) any(strcmp(name, args(1 : 2 : end))), names));
-        inds = cellfun(@(name) find(strcmp(name, args), 1), names(matching));
+    if iscell(args)
+        if match_case
+            matching = find(cellfun(@(name) any(strcmp(name, args(1 : 2 : end))), names));
+            inds = cellfun(@(name) find(strcmp(name, args), 1), names(matching));
+        else
+            matching = find(cellfun(@(name) any(strcmpi(name, args(1 : 2 : end))), names));
+            inds = cellfun(@(name) find(strcmpi(name, args), 1), names(matching));
+        end
+
+        if any(inds + 1 > numel(args))
+            error('arg:invalid_input', 'input must contain name-value-pairs');
+        end
+        
+        values = args(inds + 1);
+    elseif isstruct(args)
+        fns = fieldnames(args);
+        if match_case
+            fns2 = fns;
+            names2 = names;
+        else
+            fns2 = cfun(@lower, fns);
+            names2 = cfun(@lower, names);
+        end
+        matching = find(cellfun(@(name) any(strcmp(name, fns2)), names2));
+        values = cfun(@(fieldname) args.(fieldname), names(matching));
     else
-        matching = find(cellfun(@(name) any(strcmpi(name, args(1 : 2 : end))), names));
-        inds = cellfun(@(name) find(strcmpi(name, args), 1), names(matching));
-    end
-    
-    if any(inds + 1 > numel(args))
-        error('arg:invalid_input', 'input must contain name-value-pairs');
+        error('arg:invalid_input', 'input of type %s is not supported.', class(args));
     end
         
     varargout = cell(1, numel(names));
@@ -84,13 +101,19 @@ function [args, varargout] = arg(args, names, defaults, match_case) %#ok<INUSD>
         [varargout{:}] = deal(defaults{:});
     else
         % return values that were found
-        [varargout{matching}] = deal(args{inds + 1});
+        [varargout{matching}] = deal(values{:});
 
         % set defaults for those names not found
         missing = setdiff(1 : numel(names), matching);
         [varargout{missing}] = deal(defaults{missing});
 
         % remove those name-value-pairs that were found
-        args([inds, inds + 1]) = [];
+        if iscell(args)
+            args([inds, inds + 1]) = [];
+        elseif isstruct(args)
+            for ii = 1 : numel(fns(matching))
+                args = rmfield(args, fns{matching(ii)});
+            end
+        end
     end
 end
