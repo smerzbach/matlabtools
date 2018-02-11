@@ -143,7 +143,7 @@ classdef iv < handle
             % destroyed
             obj.figure_handle.DeleteFcn = @obj.cleanup;
             
-            obj.select_image(obj.selected_image);
+            obj.set_image(obj.selected_image);
             obj.change_image();
             
             axis(obj.axes_handle, 'tight');
@@ -182,11 +182,10 @@ classdef iv < handle
         end
         
         function select_image(obj, ind)
-            % remove viewer from previously selected image(s) and update it
-            % on the newly selected one(s)
-            cfun(@(im) im.remove_viewer(obj), obj.images(obj.selected_image));
-            obj.selected_image = ind;
-            cfun(@(im) im.add_viewer(obj), obj.images(obj.selected_image));
+            obj.set_image(ind);
+            obj.ui.slider_images.set_value(obj.selected_image(1));
+            obj.change_image();
+            obj.paint();
         end
         
         function change_image(obj)
@@ -383,8 +382,16 @@ classdef iv < handle
             end
         end
         
+        function set_image(obj, ind)
+            % remove viewer from previously selected image(s) and update it
+            % on the newly selected one(s)
+            cfun(@(im) im.remove_viewer(obj), obj.images(obj.selected_image));
+            obj.selected_image = ind;
+            cfun(@(im) im.add_viewer(obj), obj.images(obj.selected_image));
+        end
+        
         function callback_slider_images(obj, value)
-            obj.select_image(value);
+            obj.set_image(value);
             obj.ui.lb_images.Value = value;
             obj.change_image();
             obj.paint();
@@ -406,7 +413,7 @@ classdef iv < handle
                     warning('iv:illegal_selection', 'please select one or two images only');
                     src.Value = src.Value(1 : 2);
                 end
-                obj.select_image(src.Value);
+                obj.set_image(src.Value);
                 obj.ui.slider_images.set_value(obj.selected_image(1));
                 obj.change_image();
                 obj.paint();
