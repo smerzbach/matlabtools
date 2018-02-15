@@ -51,6 +51,9 @@ function cell_array = mat2cell2(mat, varargin)
     n = numel(varargin);
     dims = [size(mat), ones(1, n - ndims(mat))];
     
+    % omitted dimensions default to 1
+    varargin = [varargin, repmat({1}, 1, ndims(mat) - n)];
+    
     % replace empty size specifications with full length along that
     % dimension
     empty_inds = cellfun(@isempty, varargin);
