@@ -942,9 +942,11 @@ classdef img < handle & matlab.mixin.Copyable
             elseif obj.num_channels > 1 && obj.num_frames == 1
                 nx = numel(xs);
                 nc = numel(channels);
-                ys = repmat(ys, 1, numel(channels));
-                xs = repmat(xs, 1, numel(channels));
-                channels = repmat(channels(:)', nx, 1);
+                if nx ~= nc
+                    ys = repmat(ys, 1, numel(channels));
+                    xs = repmat(xs, 1, numel(channels));
+                    channels = repmat(channels(:)', nx, 1);
+                end
                 values = obj.interpolant(ys(:), xs(:), channels(:));
                 values = reshape(values, [], nc);
             elseif obj.num_channels == 1 && obj.num_frames > 1
