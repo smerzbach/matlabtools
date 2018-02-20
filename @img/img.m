@@ -726,6 +726,10 @@ classdef img < handle & matlab.mixin.Copyable
                     end
                     varargout{1}.set_channel_names(channels_out);
                 end
+            elseif numel(S) >= 2 && strcmp(S(1).type, '()') && strcmp(S(2).type, '.')
+                % obj(123 : 124, 1 : 10, :).cdata and the like
+                tmp_obj = subsref(obj, S(1));
+                [varargout{:}] = subsref(tmp_obj, S(2 : end));
             else
                 error('img:invalid_subscripting', 'invalid subscripting: %s', [S.type]);
             end
