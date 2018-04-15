@@ -928,7 +928,7 @@ classdef img < handle & matlab.mixin.Copyable
             output.cdata(linds) = assignment;
         end
         
-        function values = interp(obj, ys, xs, channels, frames) %#ok<INUSD>
+        function values = interp(obj, ys, xs, channels, frames)
             % multi-linear interpolation on the image data
             obj.update_interpolant();
             
@@ -936,6 +936,13 @@ classdef img < handle & matlab.mixin.Copyable
             frames = default('frames', 1);
             
             [ys, xs, channels, frames] = obj.char_subs_to_linds(ys, xs, channels, frames);
+            
+            if isempty(obj.interpolant)
+                values = obj.linref(ys, xs, channels, frames);
+                nc = numel(channels);
+                values = reshape(values, [], nc);
+                return;
+            end
             
             if obj.num_channels == 1 && obj.num_frames == 1
                 values = obj.interpolant(ys, xs);
@@ -963,7 +970,7 @@ classdef img < handle & matlab.mixin.Copyable
                 si = cellfun(@numel, obj.interpolant.GridVectors);
             end
             
-            if isempty(obj.interpolant) || any(si ~= s(s > 1)) || obj.interpolant_dirty
+            if any(s(1 : 2) > 1) && (isempty(obj.interpolant) || any(si ~= s(s > 1)) || obj.interpolant_dirty)
                 % interpolation object
                 % we can only interpolate along those dimensions which have
                 % the necessary number of samples
@@ -1031,6 +1038,26 @@ classdef img < handle & matlab.mixin.Copyable
             % displaying strings like 'img (uint8)' in the workspace list;
             % use class(obj.cdata) to get the underlying numeric data type
             str = ['img (', class(obj.cdata), ')'];
+        end
+        
+        function tf = gt(obj, other)
+            tf = obj.cdata > other;
+        end
+        
+        function tf = ge(obj, other)
+            tf = obj.cdata >= other;
+        end
+        
+        function tf = lt(obj, other)
+            tf = obj.cdata < other;
+        end
+        
+        function tf = le(obj, other)
+            tf = obj.cdata <= other;
+        end
+        
+        function tf = eq(obj, other)
+            tf = obj.cdata == other;
         end
         
         function tf = isfloat(obj)
@@ -1424,6 +1451,13 @@ classdef img < handle & matlab.mixin.Copyable
                     obj.channels_to_str());
             end
             obj_out.set_channel_names('RGB');
+        end
+        
+        function obj_out = to_hsv(obj)
+            % convert image to HSV color space
+            obj_out = obj.to_rgb();
+            obj_out.assign(rgb2hsv(obj_out.cdata));
+            obj_out.set_channel_names('HSV');
         end
         
         function [mat_rgb, wls] = rgb_conversion_mat(obj)
