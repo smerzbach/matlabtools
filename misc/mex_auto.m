@@ -38,6 +38,7 @@
 % - headers:  additional cell array of header files that should be included
 %             in the modification time stamps (not passed to mex())
 % - openmp:   set to true if you want to compile with OpenMP support
+% - cpp11:    set to true (default) to enable the C++11 standard
 %
 % Any further inputs are directly passed to mex().
 %
@@ -106,6 +107,8 @@ function mex_auto(varargin)
     [varargin, sources] = arg(varargin, 'sources', {default_source}, false);
     [varargin, headers] = arg(varargin, 'headers', {default_header}, false);
     [varargin, openmp] = arg(varargin, 'openmp', false);
+    [varargin, c11, cpp11, cPP11, CPP11] = arg(varargin, {'c11', 'cpp11', 'c++11', 'C++11'}, false);
+    cpp11 = any([c11, cpp11, cPP11, CPP11]);
     
     if openmp
         if isunix || ismac
@@ -116,6 +119,17 @@ function mex_auto(varargin)
         else
             % this assumes MSVC, if using MinGW, please use the above flags
             varargin = [varargin, 'COMPFLAGS="/openmp $COMPFLAGS"'];
+        end
+    end
+    
+    if cpp11
+        if isunix || ismac
+            varargin = [varargin, ...
+                'CFLAGS="\$CFLAGS -std=c11"', ...
+                'CXXFLAGS="\$CXXFLAGS -std=c++11"', ...
+                'LDFLAGS="\$LDFLAGS -std=c++11"'];
+        else
+            warning('mex_auto:no_cpp11_switch', 'no dedicated C++11 switch for MSVC');
         end
     end
     

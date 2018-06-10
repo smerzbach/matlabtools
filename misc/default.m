@@ -61,7 +61,9 @@ function p = default(name, default)
             try
                 if isempty(default)
                     default_str = '[]';
-                elseif isnumeric(default)
+                elseif isnumeric(default) && numel(default) == 1
+                    default_str = num2str(default);
+                elseif isnumeric(default) && numel(default) > 1
                     default_str = mat2str(default);
                 else
                     default_str = string(default);

@@ -817,7 +817,7 @@ classdef img < handle & matlab.mixin.Copyable
             ind = s(k);
         end
         
-        function output = linref(obj, ys, xs, cs, fs) %#ok<INUSD>
+        function output = linref(obj, ys, xs, cs, fs)
             % refer to image elements with linear indexing in the x and y
             % coordinates, i.e. instead of forming the cartesian product of
             % all x and y coordinates, this function computes linear
@@ -828,8 +828,14 @@ classdef img < handle & matlab.mixin.Copyable
             % this method is also called when an img object is indexed
             % with cell arrays
             s = obj.size4();
-            cs = default('cs', 1 : s(3));
-            fs = default('fs', 1 : s(4));
+            
+            if ~exist('cs', 'var') || isempty(cs)
+                cs = 1 : s(3);
+            end
+            
+            if ~exist('fs', 'var') || isempty(fs)
+                fs = 1 : s(4);
+            end
             
             nxy = numel(xs);
             nc = numel(cs);
@@ -932,8 +938,13 @@ classdef img < handle & matlab.mixin.Copyable
             % multi-linear interpolation on the image data
             obj.update_interpolant();
             
-            channels = default('channels', 1);
-            frames = default('frames', 1);
+            if ~exist('channels', 'var') || isempty(channels)
+                channels = 1 : obj.num_channels;
+            end
+            
+            if ~exist('frames', 'var') || isempty(frames)
+                frames = 1 : obj.num_frames;
+            end
             
             [ys, xs, channels, frames] = obj.char_subs_to_linds(ys, xs, channels, frames);
             
@@ -1642,6 +1653,8 @@ classdef img < handle & matlab.mixin.Copyable
                 end
             end
             
+            % interpolants require the same data type for all samples
+            subs = cfun(@double, subs);
             [ys, xs, cs, fs] = deal(subs{:});
         end
     end

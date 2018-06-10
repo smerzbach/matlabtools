@@ -38,6 +38,7 @@ classdef tonemapper < handle
         raw_mode = false; % for single channel selection of spectral images,
         % tonemap channel as monochrome image instead of conversion to RGB
         hist_widget;
+        update_hists = true;
     end
     
     properties(Access = protected)
@@ -174,7 +175,9 @@ classdef tonemapper < handle
             else
                 im = obj.image;
             end
-            obj.hist_widget.update(im);
+            if obj.update_hists
+                obj.hist_widget.update(im);
+            end
         end
         
         function select_channels(obj, selection)
