@@ -92,7 +92,7 @@ classdef tonemapper < handle
         end
         
         function im = tonemap(obj, im, varargin)
-            if ~exist('im', 'var')
+            if ~exist('im', 'var') || isempty(im)
                 im = obj.image;
             end
             
@@ -108,7 +108,7 @@ classdef tonemapper < handle
                 im = im(:, :, obj.selected_channels);
                 if ~isempty(varargin)
                     for ii = 1 : 2 : numel(varargin)
-                        if ischar(varargin{ii}) && strcmpi(varargin{ii}, 'rgb_mat')
+                        if ischar(varargin{ii}) && strcmpi(varargin{ii}, 'rgb_mat') && ~isempty(varargin{ii + 1})
                             varargin{ii + 1} = varargin{ii + 1}(:, obj.selected_channels);
                         end
                     end

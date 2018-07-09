@@ -277,7 +277,7 @@ classdef img < handle & matlab.mixin.Copyable
                     'please specify repetitions along the different dimensions as input arguments.');
             end
             if numel(varargin) == 1
-                reps = varargin{2};
+                reps = varargin{1};
             else
                 reps = [varargin{:}];
             end
@@ -592,11 +592,20 @@ classdef img < handle & matlab.mixin.Copyable
         function obj = assign(obj, assignment, varargin)
             % assign values with arbitrary indexing, useful for anonymous
             % functions
-            if numel(varargin) > 0
-                obj.cdata(varargin{:}) = assignment;
+            if isa(assignment, 'img')
+                if numel(varargin) > 0
+                    obj.cdata(varargin{:}) = assignment.cdata;
+                else
+                    obj.cdata = []; % wtf? why is this necessary?
+                    obj.cdata = assignment.cdata;
+                end
             else
-                obj.cdata = []; % wtf? why is this necessary?
-                obj.cdata = assignment;
+                if numel(varargin) > 0
+                    obj.cdata(varargin{:}) = assignment;
+                else
+                    obj.cdata = []; % wtf? why is this necessary?
+                    obj.cdata = assignment;
+                end
             end
             obj.interpolant_dirty = true;
         end

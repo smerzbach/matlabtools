@@ -35,6 +35,7 @@ classdef iv < handle
         images; % cell array of img objects
         
         tonemapper; % map image data to a range that allows for display
+        rgb_mat;
     end
     
     properties(Access = protected)
@@ -91,6 +92,7 @@ classdef iv < handle
             
             % parse inputs & set / create handles
             [varargin, parent] = arg(varargin, 'parent', [], false);
+            [varargin, obj.rgb_mat] = arg(varargin, 'rgb_mat', [], false);
             if ~isempty(varargin)
                 unmatched = varargin(cellfun(@ischar, varargin));
                 unmatched = sprintf('%s, ', unmatched{:});
@@ -168,10 +170,10 @@ classdef iv < handle
             % display the currently selected img object
             if isempty(obj.image_handle)
                 obj.image_handle = tb.imshow2(obj.axes_handle, ...
-                    obj.tonemapper.tonemap());
+                    obj.tonemapper.tonemap([], 'rgb_mat', obj.rgb_mat));
             else
                 obj.image_handle = tb.imshow2(obj.image_handle, ...
-                    obj.tonemapper.tonemap());
+                    obj.tonemapper.tonemap([], 'rgb_mat', obj.rgb_mat));
             end
         end
         
@@ -252,7 +254,7 @@ classdef iv < handle
         end
         
         function rgb = tonemap(obj, im)
-            rgb = obj.tonemapper.tonemap(im);
+            rgb = obj.tonemapper.tonemap(im, 'rgb_mat', obj.rgb_mat);
         end
     end
     
