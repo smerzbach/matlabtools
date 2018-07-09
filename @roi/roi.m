@@ -62,8 +62,19 @@ classdef roi < handle
             end
         end
         
-        function setImageSize(obj, im)
+        function setImage(obj, im)
             [obj.height, obj.width, obj.num_channels] = size(im);
+        end
+        
+        function setImageSize(obj, width, height, num_channels)
+            if ~isscalar(width)
+                warning('roi:invalid_input', 'use setImage to update image dimensions from a single object');
+                obj.setImage(width);
+                return;
+            end
+            obj.height = height;
+            obj.width = width;
+            obj.num_channels = num_channels;
         end
         
         function mat = getMat(obj, im)
