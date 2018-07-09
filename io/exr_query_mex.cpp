@@ -113,7 +113,6 @@ void mexFunction( int nlhs, mxArray *plhs[],
         *mxGetPr(field_value) = num_channels;
         mxSetFieldByNumber(plhs[0], 0, mxGetFieldNumber(plhs[0], "num_channels"), field_value);
         
-        mexPrintf("compression_type: %d\n", compression_type);
         field_value = mxCreateDoubleMatrix(1, 1, mxREAL);
         *mxGetPr(field_value) = compression_type;
         mxSetFieldByNumber(plhs[0], 0, mxGetFieldNumber(plhs[0], "compression_type"), field_value);

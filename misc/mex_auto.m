@@ -189,5 +189,7 @@ function mex_auto(varargin)
             'or non existant and needs to be compiled.']);
         mex(sources{:}, varargin{:}, ['-I', mpath], ...
             '-outdir', mpath, '-output', [mname, '_mex']);
+        warning([mname, ':mex_outdated'], ...
+            'compilation done.');
     end
 end
