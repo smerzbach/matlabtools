@@ -610,6 +610,42 @@ classdef img < handle & matlab.mixin.Copyable
             obj.interpolant_dirty = true;
         end
         
+        function assign_masked(obj, mask, assignment)
+            % given a logical mask with size [height, width], assign values
+            % to image pixels
+            assert(all(tb.size(mask, 1 : 2) == [obj.h, obj.w]), ...
+                'img:invalid_assignment', 'mask must be [%d, %d] logical array.', ...
+                obj.h, obj.w);
+            nz = nnz(mask);
+            if numel(assignment) == 1 || numel(assignment) == nz
+                % same scalar assigned for all channels per pixel
+                assignment = assignment(:)';
+            elseif numel(assignment) == nz * obj.nc
+                assignment = reshape(assignment, [], obj.nc)';
+            else
+                error('img:invalid_assignment', ['assignment must be [%d x %d x %d] ', ...
+                    'or [%d x %d].'], obj.h, obj.w, obj.nc, obj.h, obj.w);
+            end
+            tmp = permute(obj.cdata, [3, 1, 2]);
+            if numel(assignment) == 1 || numel(assignment) == nz
+                tmp(:, mask) = assignment;
+            else
+                tmp(:, mask) = repmat(assignment, obj.nc, 1);
+            end
+            obj.assign(tmp);
+        end
+        
+        function values = masked(obj, mask)
+            % given a logical mask with size [height, width], return the
+            % pixel values as [obj.nc, nnz(mask)] array
+            assert(all(tb.size(mask, 1 : 2) == [obj.h, obj.w]), ...
+                'img:invalid_assignment', 'mask must be [%d, %d] logical array.', ...
+                obj.h, obj.w);
+            nz = nnz(mask);
+            tmp = permute(obj.cdata, [3, 1, 2]);
+            values = tmp(:, mask);
+        end
+        
         function obj = set_zero(obj)
             % fill entire image with zeros
             obj.cdata(:) = 0;
