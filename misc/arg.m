@@ -45,7 +45,7 @@
 %
 % c =
 %      0
-function [args, varargout] = arg(args, names, defaults, match_case) %#ok<INUSD>
+function [args, varargout] = arg(args, names, defaults, match_case)
     if ~iscell(args) && ~isstruct(args)
         error('arg:invalid_input', 'first input must be cell array or struct');
     end
@@ -64,7 +64,9 @@ function [args, varargout] = arg(args, names, defaults, match_case) %#ok<INUSD>
     
     defaults = repmat(defaults(:), ceil(numel(names) / numel(defaults)), 1);
     
-    match_case = default('match_case', true);
+    if ~exist('match_case', 'var') || isempty(match_case)
+        match_case = true;
+    end
     
     if iscell(args)
         if match_case
