@@ -25,7 +25,25 @@
 % 
 % Rudimentary image viewer class.
 classdef iv < handle    
+    properties(Constant)
+        default_ui_channels_weight = -1;
+        default_ui_histogram_weight = -1;
+        default_ui_tonemapping_weight = -3;
+        default_ui_pixelinfo_weight = -1;
+        
+        slider_height = 65;
+        left_width = 275;
+        
+        default_with_general = true;
+        default_with_tonemapper = true;
+        default_with_pixel_info = true;
+    end
+    
     properties(Access = public)
+        parent;
+    end
+    
+    properties(GetAccess = public, SetAccess = protected)
         figure_handle;
         parent_handle;
         axes_handle;
@@ -36,9 +54,17 @@ classdef iv < handle
         
         tonemapper; % map image data to a range that allows for display
         rgb_mat;
+        
+        ui_general_weight;
+        ui_tonemapping_weight;
+        ui_pixelinfo_weight;
     end
     
     properties(Access = protected)
+        with_general;
+        with_tonemapper;
+        with_pixel_info;
+        
         ui; % struct storing all layout handles
         selected_image = 1;
         selected_frame = 1;
@@ -48,11 +74,6 @@ classdef iv < handle
         old_callback_scroll;
         
         key_mods = {};
-    end
-    
-    properties(Constant)
-        slider_height = 65;
-        left_width = 275;
     end
     
     methods(Access = public)
@@ -93,6 +114,15 @@ classdef iv < handle
             % parse inputs & set / create handles
             [varargin, parent] = arg(varargin, 'parent', [], false);
             [varargin, obj.rgb_mat] = arg(varargin, 'rgb_mat', [], false);
+            [varargin, obj.with_general] = arg(varargin, 'with_general', obj.default_with_general);
+            [varargin, ui_channels_weight] = arg(varargin, 'ui_channels_weight', ...
+                obj.default_ui_channels_weight, false);
+            [varargin, ui_histogram_weight] = arg(varargin, 'ui_histogram_weight', ...
+                obj.default_ui_histogram_weight, false);
+            [varargin, obj.ui_tonemapping_weight] = arg(varargin, 'ui_tonemapping_weight', ...
+                obj.default_ui_tonemapping_weight, false);
+            [varargin, obj.ui_pixelinfo_weight] = arg(varargin, 'ui_pixelinfo_weight', ...
+                obj.default_ui_pixelinfo_weight, false);
             if ~isempty(varargin)
                 unmatched = varargin(cellfun(@ischar, varargin));
                 unmatched = sprintf('%s, ', unmatched{:});
@@ -136,7 +166,9 @@ classdef iv < handle
             obj.ui_initialize();
             
             obj.tonemapper = tonemapper('callback', @obj.paint);
-            obj.tonemapper.create_ui(obj.ui.l3_left_tonemapping);
+            obj.tonemapper.create_ui(obj.ui.l3_left_tonemapping, ...
+                'ui_channels_weight', ui_channels_weight, ...
+                'ui_histogram_weight', ui_histogram_weight);
             
             obj.ui_layout_finalize();
             obj.axes_handle.Position = [0, 0, 1, 1];
@@ -301,7 +333,7 @@ classdef iv < handle
             end
             
             obj.ui.l0.Widths = [obj.left_width, -1];
-            obj.ui.l2_left_meta.Heights = [-3, -1];
+            obj.ui.l2_left_meta.Heights = [obj.ui_tonemapping_weight, obj.ui_pixelinfo_weight];
             obj.ui.l4_left_comparison.Widths = [75, -1];
             obj.ui.l2_left_selection.Heights = [-1, 0];
         end

@@ -25,6 +25,11 @@
 % 
 % A simple class for tonemapping image data.
 classdef tonemapper < handle
+    properties(Constant)
+        default_channels_weight = -1;
+        default_histogram_weight = -1;
+    end
+    
     properties(Access = public)
         scale = 1;
         offset = 0;
@@ -128,12 +133,14 @@ classdef tonemapper < handle
             end
         end
         
-        function handles = create_ui(obj, parent)
+        function handles = create_ui(obj, parent, varargin)
             if ~exist('parent', 'var') || isempty(parent)
                 parent = figure();
             end
             
             obj.parent = parent;
+            [varargin, ui_channels_weight] = arg(varargin, 'ui_channels_weight', obj.default_channels_weight, false);
+            [varargin, ui_histogram_weight] = arg(varargin, 'ui_histogram_weight', obj.default_histogram_weight, false); %#ok<ASGLU>
             
             if ~isa(obj.parent, 'matlab.ui.container.Panel')
                 obj.parent = uipanel('Parent', obj.parent);
@@ -142,7 +149,7 @@ classdef tonemapper < handle
             
             obj.ui_layout();
             obj.ui_initialize();
-            obj.ui_layout_finalize();
+            obj.ui_layout_finalize(ui_channels_weight, ui_histogram_weight);
             handles = obj.ui;
         end
         
@@ -361,9 +368,11 @@ classdef tonemapper < handle
                 'Units', 'normalized', 'Position', [0, 0, 1, 1]);
         end
         
-        function ui_layout_finalize(obj)
+        function ui_layout_finalize(obj, channels_weight, histogram_weight) %#ok<INUSD>
             % finish setting up layout
-            obj.ui.l0.Heights = [6 * 18, -1, -1];
+            channels_weight = default('channels_weight', obj.default_channels_weight);
+            histogram_weight = default('histogram_weight', obj.default_histogram_weight);
+            obj.ui.l0.Heights = [6 * 18, channels_weight, histogram_weight];
             obj.ui.l1_channels.Heights = [18, -1];
         end
         
