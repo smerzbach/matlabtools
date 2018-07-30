@@ -1238,8 +1238,7 @@ classdef img < handle & matlab.mixin.Copyable
         
         function set_channel_names(obj, channel_names)
             % update the image's channel names
-            if ~iscell(channel_names) && ischar(channel_names) && ...
-                    numel(channel_names) == obj.num_channels
+            if ischar(channel_names) || isnumeric(channel_names)
                 channel_names = num2cell(channel_names);
             end
             assert(iscell(channel_names), ...
