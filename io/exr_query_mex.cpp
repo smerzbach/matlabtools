@@ -70,8 +70,8 @@ void mexFunction( int nlhs, mxArray *plhs[],
             mexErrMsgTxt("parsing header from file failed.\n");
         }
 
-        int width = exr_header.data_window[3] - exr_header.data_window[1] + 1;
-        int height = exr_header.data_window[2] - exr_header.data_window[0] + 1;
+        int height= exr_header.data_window[3] - exr_header.data_window[1] + 1;
+        int width = exr_header.data_window[2] - exr_header.data_window[0] + 1;
         int num_channels = exr_header.num_channels;
         int compression_type = exr_header.compression_type;
 
