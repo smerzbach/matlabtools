@@ -54,6 +54,7 @@ classdef img < handle & matlab.mixin.Copyable
         interpolant_dirty; % indicates the interpolant requires an update when pixel values have changed
         viewers; % set of viewer objects that update as soon as the image changes
         listener_handle;
+        silent = true; % set this flag to true to temporarily disable listener callbacks
     end
     
     methods(Access = public)
@@ -593,21 +594,48 @@ classdef img < handle & matlab.mixin.Copyable
             % assign values with arbitrary indexing, useful for anonymous
             % functions
             if isa(assignment, 'img')
-                if numel(varargin) > 0
-                    obj.cdata(varargin{:}) = assignment.cdata;
-                else
-                    obj.cdata = []; % wtf? why is this necessary?
-                    obj.cdata = assignment.cdata;
-                end
+                assignment = assignment.cdata;
+            end
+            if numel(varargin) > 0
+                obj.cdata(varargin{:}) = assignment;
             else
-                if numel(varargin) > 0
-                    obj.cdata(varargin{:}) = assignment;
-                else
-                    obj.cdata = []; % wtf? why is this necessary?
-                    obj.cdata = assignment;
-                end
+                % simple assignment did not trigger the change listener
+                % callback every time -> disable notifying viewer listeners
+                % and instead call them manually below
+                prev_silent_state = obj.silent;
+                obj.silent = true;
+                obj.cdata = assignment;
+                obj.silent = prev_silent_state;
+                
+                % trigger manually
+                obj.changed();
+                % restore listener
+                obj.listener_handle = addlistener(obj, 'cdata', 'PostSet', @obj.changed);
+                
+                % previous code:
+%                 if numel(obj.cdata) == numel(assignment)
+%                     obj.cdata(:) = assignment;
+%                 else
+%                     % this does not trigger the change listener callback
+%                     obj.cdata = assignment;
+%                     % trigger manually
+%                     obj.changed();
+%                 end
             end
             obj.interpolant_dirty = true;
+        end
+        
+        function obj = assign_silent(obj, assignment, varargin)
+            % without triggering listener callbacks, assign values with
+            % arbitrary indexing, useful for anonymous functions
+            obj.silent = true;
+            obj.assign(assignment, varargin{:});
+            obj.silent = false;
+        end
+        
+        function trigger_listeners(obj)
+            % manually trigger change listeners
+            obj.changed();
         end
         
         function assign_masked(obj, mask, assignment)
@@ -1643,6 +1671,10 @@ classdef img < handle & matlab.mixin.Copyable
             obj.viewers = [];
         end
         
+        function tf = has_viewer(obj)
+            tf = ~isempty(obj.viewers);
+        end
+        
 %% IO
         function imwrite(obj, varargin)
             % save image to disk
@@ -1655,7 +1687,7 @@ classdef img < handle & matlab.mixin.Copyable
     methods(Access = protected)
         function changed(obj, src, evnt) %#ok<INUSD>
             % change listener callback, updates all assigned viewer objects
-            if isempty(obj.cdata)
+            if isempty(obj.cdata) || obj.silent
                 return;
             end
             if ~isempty(obj.viewers)
