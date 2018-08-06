@@ -62,7 +62,7 @@ function [args, varargout] = arg(args, names, defaults, match_case)
         defaults = {defaults};
     end
     
-    defaults = repmat(defaults(:), ceil(numel(names) / numel(defaults)), 1);
+    defaults = repmat(defaults(:), ceil(numel(names) / max(1, numel(defaults))), 1);
     
     if ~exist('match_case', 'var') || isempty(match_case)
         match_case = true;
