@@ -28,10 +28,16 @@ classdef roi < handle
     properties
         x_min = 1;
         y_min = 1;
+        c_min = 1;
         x_max = 0; % set to 0: use image width, smaller 0: x_max pixel from right boundary
         y_max = 0; % set to 0: use image height, smaller 0: y_max pixel from bottom boundary
+        c_max = 0; % set to 0: use all channels, smaller 0: c_max from last channel
+        % stride < 0: interpreted like a stride but rescaled using imresize
+        % 0 < stride < 1: direct downscaling factor
+        % stride > 1: integer valued, direct subsampling
         x_stride = 1;
         y_stride = 1;
+        c_stride = 1;
         
         height = 0;
         width = 0;
@@ -50,15 +56,21 @@ classdef roi < handle
             obj.x_max = mat(1, end);
             obj.y_max = mat(2, end);
             if size(mat, 2) == 3
+                % stride specified
                 obj.x_stride = mat(1, 2);
                 obj.y_stride = mat(2, 2);
-            else
-                obj.x_stride = 1;
-                obj.y_stride = 1;
+            end
+            if size(mat, 1) == 3
+                obj.c_min = mat(3, 1);
+                obj.c_max = mat(3, end);
+                if size(mat, 2) == 3
+                    % stride specified
+                    obj.c_stride = mat(3, 2);
+                end
             end
             
             if exist('im', 'var') && ~isempty(im)
-                [obj.height, obj.width, obj.num_channels] = size(im);
+                obj.setImage(im);
             end
         end
         
@@ -82,14 +94,15 @@ classdef roi < handle
             
             % get image dimensions
             if exist('im', 'var') && ~isempty(im)
-                [h, w, ~] = size(im);
+                [h, w, nc] = size(im);
             else
                 h = obj.height;
                 w = obj.width;
             end
             
             mat = [obj.x_min, obj.x_stride, obj.x_max;
-                obj.y_min, obj.y_stride, obj.y_max];
+                obj.y_min, obj.y_stride, obj.y_max;
+                obj.c_min, obj.c_stride, obj.c_max];
             
             if mat(1, 3) <= 0
                 mat(1, 3) = w + mat(1, 3);
@@ -98,16 +111,18 @@ classdef roi < handle
             if mat(2, 3) <= 0
                 mat(2, 3) = h + mat(2, 3);
             end
+            
+            if mat(3, 3) <= 0
+                mat(3, 3) = nc + mat(3, 3);
+            end
         end
         
         function setXMin(obj, x_min)
             obj.x_min = x_min;
-%             obj.x_max = max(obj.x_max, obj.x_min);
         end
         
         function setYMin(obj, y_min)
             obj.y_min = y_min;
-%             obj.y_max = max(obj.y_max, obj.y_min);
         end
         
         function setXMax(obj, x_max)
@@ -120,8 +135,21 @@ classdef roi < handle
             obj.y_min = min(obj.y_min, obj.getYMax());
         end
         
+        function setCMax(obj, c_max)
+            obj.c_max = c_max;
+            obj.c_min = min(obj.c_min, obj.getCMax());
+        end
+        
         function x_min = getXMin(obj)
             x_min = obj.x_min;
+        end
+        
+        function y_min = getYMin(obj)
+            y_min = obj.y_min;
+        end
+        
+        function c_min = getCMin(obj)
+            c_min = obj.c_min;
         end
         
         function x_max = getXMax(obj, im)
@@ -147,10 +175,6 @@ classdef roi < handle
             end
         end
         
-        function y_min = getYMin(obj)
-            y_min = obj.y_min;
-        end
-        
         function y_max = getYMax(obj, im)
             % return the largest y coordinate inside of the ROI
             
@@ -174,28 +198,60 @@ classdef roi < handle
             end
         end
         
-        function [width, height] = getDims(obj, with_strides) %#ok<INUSD>
+        function c_max = getCMax(obj, im)
+            % return the largest channel index inside of the ROI
+            
+            % get number of channels
+            if exist('im', 'var') && ~isempty(im)
+                [~, ~, nc] = size(im);
+            else
+                nc = obj.num_channels;
+            end
+            
+            if obj.c_max > 0
+                c_max = obj.c_max;
+            else
+                % roi.c_max = 0: num_channels, roi.c_max < 0: c_max = num_channels - c_max
+                if nc == 0
+                    error('roi:missing_input', ...
+                        ['please provide an image so that the actual pixel ', ...
+                        'coordinates can be estimated for the selected ROI']);
+                end
+                c_max = nc + obj.c_max;
+            end
+        end
+        
+        function [width, height, num_channels] = getDims(obj, with_strides) %#ok<INUSD>
             with_strides = default('with_strides', true);
             if with_strides
                 if obj.x_stride < 0
-                    width = numel(obj.x_min : -obj.x_stride : obj.x_max);
+                    width = numel(obj.x_min : -obj.x_stride : obj.getXMax());
                 elseif obj.x_stride < 1
-                    width = round(numel(obj.x_min : obj.x_max) * obj.x_stride);
+                    width = round(numel(obj.x_min : obj.getXMax()) * obj.x_stride);
                 else
-                    width = numel(obj.x_min : obj.x_stride : obj.x_max);
+                    width = numel(obj.x_min : obj.x_stride : obj.getXMax());
                     
                 end
                 
                 if obj.y_stride < 0
-                    height = numel(obj.y_min : -obj.y_stride : obj.y_max);
+                    height = numel(obj.y_min : -obj.y_stride : obj.getYMax());
                 elseif obj.y_stride < 1
-                    height = round(numel(obj.y_min : obj.y_max) * obj.y_stride);
+                    height = round(numel(obj.y_min : obj.getYMax()) * obj.y_stride);
                 else
-                    height = numel(obj.y_min : obj.y_stride : obj.y_max);
+                    height = numel(obj.y_min : obj.y_stride : obj.getYMax());
+                end
+                
+                if obj.c_stride < 0
+                    num_channels = numel(obj.c_min : -obj.c_stride : obj.getCMax());
+                elseif obj.y_stride < 1
+                    num_channels = round(numel(obj.c_min : obj.getCMax()) * obj.c_stride);
+                else
+                    num_channels = numel(obj.c_min : obj.c_stride : obj.getCMax());
                 end
             else
                 width = obj.x_max - obj.x_min + 1;
                 height = obj.y_max - obj.y_min + 1;
+                num_channels = obj.c_max - obj.c_min + 1;
             end
         end
         
@@ -206,20 +262,24 @@ classdef roi < handle
                 im = img(im);
             end
             
-            assert(im.height == obj.height && im.width == obj.width, ...
+            assert(im.height == obj.height && im.width == obj.width && ...
+                im.num_channels == obj.num_channels, ...
                 'image dimensions must match the ROI dimensions!');
             
             if obj.x_stride < 0
-                patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), :);
-                scale = obj.getDims(true) ./ [obj.width, obj.height];
-                patch.cdata = imresize(patch.cdata, scale([2, 1]), 'bilinear');
+                patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), ...
+                    obj.c_min : obj.c_stride : obj.getCMax());
+                scale = obj.getDims(true) ./ size(patch, 2);
+                patch.cdata = imresize(patch.cdata, scale, 'bilinear');
             elseif obj.x_stride < 1
-                patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), :);
-                scale = [obj.y_stride, obj.x_stride];
+                patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), ...
+                    obj.c_min : obj.c_stride : obj.getCMax());
+                scale = tb.size2(patch, 1 : 2) .* [obj.y_stride, obj.x_stride];
                 patch.cdata = imresize(patch.cdata, scale, 'bilinear');
             else
                 patch = im(obj.y_min : obj.y_stride : obj.getYMax(), ...
-                    obj.x_min : obj.x_stride : obj.getXMax(), :);
+                    obj.x_min : obj.x_stride : obj.getXMax(), ...
+                    obj.c_min : obj.c_stride : obj.getCMax());
             end
             
             if ~was_img
