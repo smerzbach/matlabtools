@@ -28,18 +28,22 @@
 % regular expression and return them separately in multiple output
 % arguments. Optionally, the function attempts converting the tokens to
 % double, returning the original matching tokens where str2double()
-% returned nan.
+% returned nan. In the second to last argument, a boolean array of matching
+% strings is returned. The last one contains the full strings that matched.
 %
 % Usage example: parse numeric arguments from filenames:
 %
 % fnames = {'file_index001_a100_b0.005.txt'; ...
 %     'file_index002_a050_b1.42.txt'; ...
 %     'file_index003_a002_b0.03.txt'; ...
-%     'file_index004_a120_b10.5587.txt'};
-% numeric = true;
-% [index, a, b] = strparse(fnames, 'index(\d+)_a(\d+)_b(\d+\.\d+)\.txt', ...
-%     numeric)
+%     'file_index004_a120_b10.5587.txt'; ...
+%     'this_will_not_match.txt'};
 %
+% numeric = true;
+%
+% [index, a, b, matched, matching_fnames] = strparse(fnames, ...
+%     'index(\d+)_a(\d+)_b(\d+\.\d+)\.txt', numeric)
+% 
 % index =
 %      1
 %      2
@@ -57,10 +61,25 @@
 %     1.4200
 %     0.0300
 %    10.5587
-function varargout = strparse(fnames, pattern, numeric) %#ok<INUSD>
+% 
+% matched =
+%   5×1 logical array
+%    1
+%    1
+%    1
+%    1
+%    0
+% 
+% matching_fnames =
+%   4×1 cell array
+%     {'file_index001_a100_b0.005.txt'  }
+%     {'file_index002_a050_b1.42.txt'   }
+%     {'file_index003_a002_b0.03.txt'   }
+%     {'file_index004_a120_b10.5587.txt'}
+function varargout = strparse(input, pattern, numeric) %#ok<INUSD>
     numeric = default('numeric', false);
     
-    tokens = regexp(fnames, pattern, 'tokens');
+    tokens = regexp(input, pattern, 'tokens');
     matching = ~cellfun(@isempty, tokens);
     
     if ~any(matching)
@@ -68,12 +87,15 @@ function varargout = strparse(fnames, pattern, numeric) %#ok<INUSD>
             'none of the input strings matches the specified pattern');
     end
     
-    varargout = cell(1, numel(tokens{find(matching, 1)}{1}));
+    nout = numel(tokens{find(matching, 1)}{1});
+    varargout = cell(1, nout + 2);
+    varargout{nout + 1} = matching;
+    varargout{nout + 2} = input(matching);
     
-    [varargout{:}] = cfun(@(t) deal(t{1}{:}), tokens(matching));
+    [varargout{1 : nout}] = cfun(@(t) deal(t{1}{:}), tokens(matching));
     
     if numeric
-        for ii = 1 : numel(varargout)
+        for ii = 1 : nout
             tmp = cellfun(@str2double, varargout{ii});
             if ~any(isnan(tmp))
                 varargout{ii} = tmp;
