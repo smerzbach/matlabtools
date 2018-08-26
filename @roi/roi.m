@@ -243,7 +243,7 @@ classdef roi < handle
                 
                 if obj.c_stride < 0
                     num_channels = numel(obj.c_min : -obj.c_stride : obj.getCMax());
-                elseif obj.y_stride < 1
+                elseif obj.c_stride < 1
                     num_channels = round(numel(obj.c_min : obj.getCMax()) * obj.c_stride);
                 else
                     num_channels = numel(obj.c_min : obj.c_stride : obj.getCMax());
