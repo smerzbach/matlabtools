@@ -140,13 +140,28 @@ classdef img < handle & matlab.mixin.Copyable
             props = {mc.PropertyList.Name}';
             props = setdiff(props, {'cdata'; 'channel_names'; 'viewers'});
             s = obj.size4();
-            s([1, 2, 4]) = 0;
+            s([1, 2]) = 0;
+            s(4) = 1;
             obj_copy = img(zeros(s, class(obj.cdata)), ...
                 'wls', obj.channel_names);
             for ii = 1 : numel(props)
                 obj_copy.(props{ii}) = obj.(props{ii});
             end
             obj_copy.interpolant_dirty = true;
+        end
+        
+        function obj_copy = copy_nc_max(obj, other)
+            % given two img objects, create a copy of the one with higher
+            % number of channels
+            if ~isa(other, 'img')
+                obj_copy = obj.copy_without_cdata();
+            else
+                if obj.num_channels > other.num_channels
+                    obj_copy = obj.copy_without_cdata();
+                else
+                    obj_copy = other.copy_without_cdata();
+                end
+            end
         end
     end
     
@@ -302,6 +317,20 @@ classdef img < handle & matlab.mixin.Copyable
             obj_out.interpolant_dirty = true;
         end
         
+        function obj_out = exp(obj)
+            % absolute value of the image
+            obj_out = obj.copy_without_cdata();
+            obj_out.assign(exp(obj.cdata));
+            obj_out.interpolant_dirty = true;
+        end
+        
+        function obj_out = log(obj)
+            % absolute value of the image
+            obj_out = obj.copy_without_cdata();
+            obj_out.assign(log(obj.cdata));
+            obj_out.interpolant_dirty = true;
+        end
+        
         function obj_out = plus(a, b)
             % addition of an img with another img or numeric array. if
             % sizes don't match, it is attempted to repeat the respectively
@@ -317,7 +346,7 @@ classdef img < handle & matlab.mixin.Copyable
                 b = img(b);
             end
             
-            obj_out = a.copy_without_cdata();
+            obj_out = a.copy_nc_max(b);
             obj_out.assign(a.cdata + b.cdata);
         end
         
@@ -336,7 +365,7 @@ classdef img < handle & matlab.mixin.Copyable
                 b = img(b);
             end
             
-            obj_out = a.copy_without_cdata();
+            obj_out = a.copy_nc_max(b);
             obj_out.assign(a.cdata - b.cdata);
         end
         
@@ -362,25 +391,29 @@ classdef img < handle & matlab.mixin.Copyable
             
             s = obj.size4();
             sin = input.size4();
-            obj_out = obj.copy_without_cdata();
             
-            if isscalar(input)
-                input = repmat(input, 1, 1, s(3));
-            elseif isvector(input)
-                assert(numel(input) == s(3), ...
-                    'input length must match the number of channels in the image!');
-                input = reshape(input, 1, 1, s(3));
-            elseif ismatrix(input)
-                assert(all(sin(1 : 2) == s(1 : 2)), ...
-                    'image x and y dimensions must match for channel-wise multiplication with a matrix!');
-                input = repmat(input, 1, 1, s(3));
-            else
-                assert(all(sin(1 : 3) == s(1 : 3)), ...
-                    'all image dimensions must match for element-wise multiplication by a 3D array!');
+            obj_out = obj.copy_nc_max(input);
+            
+            try
+                obj_out.assign(obj.cdata .* input.cdata);
+            catch
+                if isscalar(input)
+                    input = repmat(input, 1, 1, s(3));
+                elseif isvector(input)
+                    assert(numel(input.cdata) == s(3), ...
+                        'input length must match the number of channels in the image!');
+                    input = reshape(input, 1, 1, s(3));
+                elseif ismatrix(input.cdata)
+                    assert(all(sin(1 : 2) == s(1 : 2)), ...
+                        'image x and y dimensions must match for channel-wise multiplication with a matrix!');
+                    input = repmat(input, 1, 1, s(3));
+                else
+                    assert(all(sin(1 : 3) == s(1 : 3)), ...
+                        'all image dimensions must match for element-wise multiplication by a 3D array!');
+                end
+                obj_out.assign(bsxfun(@times, obj.cdata, input.cdata));
+                obj_out.interpolant_dirty = true;
             end
-            
-            obj_out.assign(bsxfun(@times, obj.cdata, input.cdata));
-            obj_out.interpolant_dirty = true;
         end
         
         function obj_out = mtimes(obj, input)
@@ -399,7 +432,7 @@ classdef img < handle & matlab.mixin.Copyable
             end
             
             s = obj.size4();
-            obj_out = obj.copy_without_cdata();
+            obj_out = obj.copy_nc_max(input);
             
             if isscalar(input)
                 obj_out.assign(input .* obj.cdata);
@@ -604,6 +637,9 @@ classdef img < handle & matlab.mixin.Copyable
                 % and instead call them manually below
                 prev_silent_state = obj.silent;
                 obj.silent = true;
+                % this is necessary for assigning the complete array as a
+                % different numeric type
+                obj.cdata = [];
                 obj.cdata = assignment;
                 obj.silent = prev_silent_state;
                 
@@ -1264,6 +1300,16 @@ classdef img < handle & matlab.mixin.Copyable
                 'UniformOutput', false);
         end
         
+        function channel_names = get_channel_names_raw(obj)
+            % get string or numeric representation of image channel names
+            channel_names = obj.channel_names;
+        end
+        
+        function channel_str = channels_to_str(obj)
+            % get string representation of the channel names
+            channel_str = tb.to_str(obj.channel_names);
+        end
+        
         function set_channel_names(obj, channel_names)
             % update the image's channel names
             if ischar(channel_names) || isnumeric(channel_names)
@@ -1277,14 +1323,9 @@ classdef img < handle & matlab.mixin.Copyable
             obj.channel_names = channel_names(:)';
         end
         
-        function channel_names = get_channel_names_raw(obj)
-            % get string or numeric representation of image channel names
-            channel_names = obj.channel_names;
-        end
-        
-        function channel_str = channels_to_str(obj)
-            % get string representation of the channel names
-            channel_str = tb.to_str(obj.channel_names);
+        function obj = set_rgb(obj)
+            % set channel names to RGB
+            obj.set_channel_names({'R', 'G', 'B'});
         end
         
         function str = string(obj)
