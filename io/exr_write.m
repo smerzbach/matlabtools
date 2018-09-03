@@ -41,6 +41,10 @@
 function exr_write(im, filename, precision, channel_names, compression)
     mex_auto('sources', {'exr_write_mex.cpp'}, 'headers', {'tinyexr.h'});
     
+    if isa(im, 'img')
+        im = im.cdata;
+    end
+    
     if ~exist('precision', 'var') || isempty(precision)
         if isa(im, 'uint16')
             precision = 'half';
