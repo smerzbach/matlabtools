@@ -230,7 +230,6 @@ classdef roi < handle
                     width = round(numel(obj.x_min : obj.getXMax()) * obj.x_stride);
                 else
                     width = numel(obj.x_min : obj.x_stride : obj.getXMax());
-                    
                 end
                 
                 if obj.y_stride < 0
@@ -269,7 +268,7 @@ classdef roi < handle
             if obj.x_stride < 0
                 patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), ...
                     obj.c_min : obj.c_stride : obj.getCMax());
-                scale = obj.getDims(true) ./ size(patch, 2);
+                scale = min(1 ./ abs([obj.x_stride, obj.y_stride]));
                 patch.cdata = imresize(patch.cdata, scale, 'bilinear');
             elseif obj.x_stride < 1
                 patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), ...
