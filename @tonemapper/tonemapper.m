@@ -106,7 +106,7 @@ classdef tonemapper < handle
                 im = img(im);
             end
             
-            im = im.copy();
+            im = to_single(im.copy());
             im.remove_all_viewers();
             
             if ~isempty(obj.selected_channels)
@@ -123,6 +123,10 @@ classdef tonemapper < handle
             switch obj.method
                 case 'simple'
                     im = obj.tonemap_simple(im, varargin{:});
+                case 'reinhard'
+                    im = obj.tonemap_reinhard(im, varargin{:});
+                case 'exposure'
+                    im = obj.tonemap_exposure(im, varargin{:});
                 otherwise
                     error('tonemapper:unsupported_method', ...
                         'unsupported tonemapping method selcte');
@@ -351,6 +355,56 @@ classdef tonemapper < handle
             end
         end
         
+        function im = tonemap_reinhard(obj, im, varargin)
+            % given an image with arbitrarily high dynamic range and
+            % potentially multispectral data, this method converts to RGB
+            % and reduces the dynamic range by offsetting, scaling and
+            % gamma correction; by default, the resulting image is clamped
+            % to [0, 1]
+            
+            if isinteger(im)
+                im.to_single();
+            end
+            
+            [varargin, rgb_mat] = arg(varargin, 'rgb_mat', [], false); %#ok<ASGLU>
+            
+            % deal with channel numbers ~= 3
+            im = obj.get_displayable_img(im, rgb_mat);
+            
+            % todo: allow mapping negative values with gamma
+            im = obj.scale * clamp((im - obj.offset) ./ ((im - obj.offset) + 1), 0, inf); %#ok<CPROPLC>
+            im = im .^ (1. / obj.gamma);
+            
+            if obj.clamp
+                im = im.clamp(0, 1);
+            end
+        end
+        
+        function im = tonemap_exposure(obj, im, varargin)
+            % given an image with arbitrarily high dynamic range and
+            % potentially multispectral data, this method converts to RGB
+            % and reduces the dynamic range by offsetting, scaling and
+            % gamma correction; by default, the resulting image is clamped
+            % to [0, 1]
+            
+            if isinteger(im)
+                im.to_single();
+            end
+            
+            [varargin, rgb_mat] = arg(varargin, 'rgb_mat', [], false); %#ok<ASGLU>
+            
+            % deal with channel numbers ~= 3
+            im = obj.get_displayable_img(im, rgb_mat);
+            
+            % todo: allow mapping negative values with gamma
+            im = 1 - exp(-obj.scale * clamp(im - obj.offset, 0, inf)); %#ok<CPROPLC>
+            im = im .^ (1. / obj.gamma);
+            
+            if obj.clamp
+                im = im.clamp(0, 1);
+            end
+        end
+        
         function ui_layout(obj)
             % set up gui layout
             obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
@@ -390,7 +444,7 @@ classdef tonemapper < handle
             obj.ui.label_method = label(obj.ui.l1_top, ...
                 {'String', 'method', 'Style', 'text', ...
                 'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
-                {'style', 'popupmenu', 'String', {'simple'}, 'Value', 1, ...
+                {'style', 'popupmenu', 'String', {'simple', 'reinhard', 'exposure'}, 'Value', 1, ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
             obj.ui.popup_method = obj.ui.label_method.control;
             % scale
@@ -518,7 +572,7 @@ classdef tonemapper < handle
                 end
             elseif src == obj.ui.popup_method
                 % TODO
-                warning('tonemapper:not_implemented', 'not implemented yet');
+                obj.method = lower(src.String{src.Value});
             elseif src == obj.ui.lb_channels
                 % channels
                 if ~isempty(src.Value)
