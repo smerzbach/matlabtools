@@ -238,6 +238,10 @@ classdef iv < handle
                 obj.ui.container_frames.Visible = 'off';
             end
             
+            if obj.tonemapper.as_onchange
+                obj.tonemapper.autoScale(true);
+            end
+            
             % show meta information for first selected image
             obj.show_meta_data();
         end

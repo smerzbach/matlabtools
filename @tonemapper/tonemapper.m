@@ -28,6 +28,7 @@ classdef tonemapper < handle
     properties(Constant)
         default_channels_weight = -1;
         default_histogram_weight = -1;
+        default_as_onchange = false;
     end
     
     properties(Access = public)
@@ -44,6 +45,8 @@ classdef tonemapper < handle
         % tonemap channel as monochrome image instead of conversion to RGB
         hist_widget;
         update_hists = true;
+        
+        as_onchange;
     end
     
     properties(Access = protected)
@@ -300,7 +303,7 @@ classdef tonemapper < handle
                 % is the image alread RGB or a subset thereof?
                 im = im.to_rgb();
             elseif im.nc == 1 && obj.raw_mode || im.is_monochrome()
-                % single channel image and raw mode requested -> just
+                % single channel image and  mode requested -> just
                 % display as grayscale
                 im = repmat(im, 1, 1, 3);
                 im.set_channel_names('RGB');
@@ -478,6 +481,9 @@ classdef tonemapper < handle
             % auto scale
             obj.ui.l2_top = uix.HBox('Parent', obj.ui.l1_top);
             uix.Empty('Parent', obj.ui.l2_top);
+            obj.ui.cb_as_onChange = uicontrol(obj.ui.l2_top, 'Units', 'normalized', ...
+                'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', false, ...
+                'String', 'onChange', 'Callback', @obj.callback_ui);
             obj.ui.button_autoscale = uicontrol('Parent', obj.ui.l2_top, ...
                 'Style', 'pushbutton', 'String', 'autoscale', ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui);
@@ -599,6 +605,9 @@ classdef tonemapper < handle
             elseif src == obj.ui.cb_raw_mode
                 % raw mode
                 obj.raw_mode = src.Value;
+            elseif src == obj.ui.cb_as_onChange
+                % as_onchange
+                obj.as_onchange = src.Value;
             end
             
             if ~isempty(obj.callback)
