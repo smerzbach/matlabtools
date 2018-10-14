@@ -1,2 +1,3 @@
 *.m linguist-language=Matlab
-
+io/*.cpp linguist-vendored
+io/*.h linguist-vendored
