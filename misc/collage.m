@@ -64,7 +64,8 @@ function imcollage = collage(ims, varargin)
             nr = ceil(n / nc);
         end
     else
-        [nr, nc] = make_rect(n, false);
+        nc = ceil(sqrt(n));
+        nr = ceil(n / nc);
     end
     n2 = nr * nc;
     
