@@ -52,6 +52,8 @@ classdef iv < handle
         image_handle;
         
         images; % cell array of img objects
+        disp_img; % auxiliary img object for comparisons
+        collage = false; % show multiple selected images in a collage
         
         tonemapper; % map image data to a range that allows for display
         rgb_mat;
@@ -72,6 +74,8 @@ classdef iv < handle
         ui; % struct storing all layout handles
         selected_image = 1;
         selected_frame = 1;
+        
+        nocb_slider_images = false; % skip image slider callback when internally setting the image
         
         old_callback_key_press;
         old_callback_key_release;
@@ -258,10 +262,16 @@ classdef iv < handle
         
         function [im1, im2] = cur_img(obj)
             % return the currently selected img object
-            im1 = obj.images{obj.selected_image(1)};
-            im2 = [];
-            if numel(obj.selected_image) == 2
-                im2 = obj.images{obj.selected_image(2)};
+            if obj.collage
+                obj.create_collage();
+                im1 = obj.disp_img;
+                im2 = [];
+            else
+                im1 = obj.images{obj.selected_image(1)};
+                im2 = [];
+                if numel(obj.selected_image) == 2
+                    im2 = obj.images{obj.selected_image(2)};
+                end
             end
         end
         
@@ -373,7 +383,7 @@ classdef iv < handle
             obj.ui.label_comparison_cmap = uicontrol('Parent', obj.ui.l5_comparison, ...
                 'Style', 'text', 'String', 'cmap');
             obj.ui.popup_comparison_method = uicontrol('Parent', obj.ui.l5_comparison, ...
-                'Style', 'popupmenu', 'String', {'sliding', 'horzcat', 'vertcat', ...
+                'Style', 'popupmenu', 'String', {'collage', 'sliding', 'horzcat', 'vertcat', ...
                 'A - B', 'B - A', 'abs(A - B)', 'RMSE', 'NRMSE', 'MAD'}, ...
                 'Callback', @obj.callback_ui);
             obj.ui.popup_comparison_cmap = uicontrol('Parent', obj.ui.l5_comparison, ...
@@ -429,12 +439,13 @@ classdef iv < handle
         
         function update_comparison_ui(obj)
             % show comparison UI if two images are selected
-            if numel(obj.selected_image) == 2
+            if numel(obj.selected_image) >= 2
                 obj.ui.l4_comparison_uip.Visible = 'on';
                 obj.ui.l3_selection.Heights = [-1, 2 * 30 + 10];
             else
                 obj.ui.l4_comparison_uip.Visible = 'off';
                 obj.ui.l3_selection.Heights = [-1, 0];
+                obj.collage = false;
             end
         end
         
@@ -447,6 +458,9 @@ classdef iv < handle
         end
         
         function callback_slider_images(obj, value)
+            if obj.nocb_slider_images
+                return;
+            end
             obj.set_image(value);
             obj.ui.lb_images.Value = value;
             obj.change_image();
@@ -463,28 +477,56 @@ classdef iv < handle
             if src == obj.ui.lb_images
                 sel = src.Value;
                 if numel(sel) < 1
-                    warning('iv:illegal_selection', 'please select one or two images only');
+                    warning('iv:illegal_selection', 'please select at least one image');
                     src.Value = 1;
-                elseif numel(sel) > 2
-                    warning('iv:illegal_selection', 'please select one or two images only');
-                    src.Value = src.Value(1 : 2);
+                elseif numel(sel) == 1
+                    obj.collage = false;
+                elseif numel(sel) > 1
+                    obj.collage = true;
+                    obj.ui.popup_comparison_method.Value = 1;
                 end
                 obj.set_image(src.Value);
-                obj.ui.slider_images.set_value(obj.selected_image(1));
+                old_slider_val = obj.ui.slider_images.get_value();
+                if ~ismember(old_slider_val, obj.selected_image())
+                    obj.nocb_slider_images = true;
+                    obj.ui.slider_images.set_value(obj.selected_image(1));
+                    % avoid race condition with slider callback
+                    pause(0.1);
+                    obj.nocb_slider_images = false;
+                end
                 obj.change_image();
                 obj.paint();
             elseif src == obj.ui.popup_comparison_method
                 method = src.String{src.Value};
                 switch method
-                    case {'sliding', 'horzcat', 'vertcat'}
+                    case {'collage', 'sliding', 'horzcat', 'vertcat'}
                         obj.ui.label_comparison_cmap.Visible = 'off';
                         obj.ui.popup_comparison_cmap.Visible = 'off';
                     otherwise
                         obj.ui.label_comparison_cmap.Visible = 'on';
                         obj.ui.popup_comparison_cmap.Visible = 'on';
                 end
+                if strcmp(method, 'collage')
+                    obj.create_collage();
+                    obj.change_image();
+                    obj.paint();
+                else
+                    warning('iv:unsupported_comparison', ...
+                        'only collage is support for image comparisons so far.')
+                    obj.ui.popup_comparison_method.Value = 1;
+                end
             elseif src == obj.ui.popup_comparison_cmap
                 src.Value
+            end
+        end
+        
+        function create_collage(obj)
+            obj.collage = true;
+            sel = obj.selected_image();
+            if ~isa(obj.disp_img, 'img') || ~isempty(intersect(sel, obj.disp_img.user.sel))
+                % create new collage only when necessary
+                obj.disp_img = collage(obj.images(sel), 'border_width', 1); %#ok<CPROP>
+                obj.disp_img.storeUserData(struct('sel', sel));
             end
         end
         
