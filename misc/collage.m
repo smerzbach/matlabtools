@@ -96,7 +96,7 @@ function imcollage = collage(ims, varargin)
             border_value = border_value(ims);
         end
         ims = cfun(@(im) padarray(im, [border_width, border_width, 0], ...
-            border_value), ims);
+            border_value, 'pre'), ims);
     end
     
     imcollage.assign(cell2mat(ims));
