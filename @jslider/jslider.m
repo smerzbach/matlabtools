@@ -159,6 +159,11 @@ classdef jslider < handle
             obj.update_labels();
         end
         
+        function value = get_value(obj)
+            jvalue = javaMethodEDT('getValue', obj.slider);
+            value = obj.slider_to_real(jvalue);
+        end
+        
         function set_value(obj, value)
             obj.value = value;
             obj.slider.Value = obj.real_to_slider(value);
