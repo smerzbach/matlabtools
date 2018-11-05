@@ -45,14 +45,25 @@ function imcollage = collage(ims, varargin)
     [varargin, border_width] = arg(varargin, 'border_width', 0, false); % border width between the frames
     [varargin, border_value] = arg(varargin, 'border_value', 0, false); %#ok<ASGLU> % pixel value of border between the frames
     
-    non_img = cellfun(@(im) ~isa(im, 'img'), ims);
-    ims(non_img) = cfun(@(im) img(im), ims(non_img));
-    
-    assert(all(cellfun(@(im) isequal(im.wls, ims{1}.wls), ims(:))), ...
-        'all input wavelength samplings must be the same.');
+    is_img = cellfun(@(im) isa(im, 'img'), ims);
+    ncs = cellfun(@(im) size(im, 3), ims);
+    if all(is_img)
+        % ensure that wavelength sampling is the same
+        assert(all(ncs(:) == ncs(1)) && all(cellfun(@(im) isequal(im.wls, ims{1}.wls), ims(:))), ...
+            'all input wavelength samplings must be the same.');
+    else
+        assert(all(ncs(:) == ncs(1)), 'all inputs must have the same number of channels.');
+    end
     
     % initialize output
-    imcollage = ims{1}.copy_without_cdata();
+    if nnz(is_img)
+        imcollage = ims{is_img(1)}.copy_without_cdata();
+    else
+        imcollage = img(zeros(0, 0, size(ims{1}, 3), class(ims{1})));
+    end
+    
+    % convert to standard arrays
+    ims(is_img) = cfun(@(im) im.cdata, ims(is_img));
     
     n = numel(ims);
     if ~isempty(nr)
@@ -63,21 +74,22 @@ function imcollage = collage(ims, varargin)
         if isempty(nr)
             nr = ceil(n / nc);
         end
+    elseif ismatrix(ims) && all(size(ims) > 1)
+        [nr, nc] = size(ims);
     else
         nc = ceil(sqrt(n));
         nr = ceil(n / nc);
     end
     n2 = nr * nc;
     
-    imempty = ims{1}.copy();
-    imempty.set_zero();
+    imempty = zeros(size(ims{1}), class(ims{1}));
     
+    % "pad" with zero-images to match the number of rows and columns
     ims(end + 1 : n2) = repmat({imempty}, n2 - n, 1);
     ims = reshape(ims, nr, nc);
     if transpose
         ims = ims';
     end
-    ims = cfun(@(im) im.cdata, ims);
     
     if border_width ~= 0
         if isa(border_value, 'function_handle')
