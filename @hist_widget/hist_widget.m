@@ -184,6 +184,7 @@ classdef hist_widget < handle
     methods(Access = protected)
         function ui_initialize(obj)
             obj.layout.l0 = uix.VBox('Parent', obj.parent);
+            obj.layout.uip = uipanel(obj.layout.l0, 'BorderType', 'none');
             obj.layout.l1_top = uix.HBox('Parent', obj.layout.l0, 'Padding', 2);
             
             % lower
@@ -202,7 +203,6 @@ classdef hist_widget < handle
             obj.ui.edit_upper = obj.ui.label_upper.control;
             
             % axes
-            obj.layout.uip = uipanel(obj.layout.l0, 'BorderType', 'none');
             obj.ah = axes(obj.layout.uip, 'FontSize', 6, ...
                 'LabelFontSizeMultiplier', 1, 'TickDir', 'out');
             obj.zah = zoomaxes(obj.ah, 'Parent', obj.layout.uip);
@@ -218,7 +218,7 @@ classdef hist_widget < handle
             obj.ah.YScale = 'log';
             
             % finalize layout
-            obj.layout.l0.Heights = [18, -1];
+            obj.layout.l0.Heights = [-1, 18];
         end
         
         function callback_mouse_down(obj, src, evnt)

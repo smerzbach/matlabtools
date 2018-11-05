@@ -26,10 +26,11 @@
 % Rudimentary image viewer class.
 classdef iv < handle    
     properties(Constant)
-        default_ui_channels_weight = -1;
-        default_ui_histogram_weight = -1;
-        default_ui_tonemapping_weight = -3;
+        default_ui_tonemapping_main_weight = 7 * 18;
+        default_ui_tonemapping_channels_weight = -1;
+        default_ui_tonemapping_histogram_weight = -1;
         default_ui_pixelinfo_weight = -1;
+        default_ui_selection_weight = -1;
         
         slider_height = 65;
         left_width = 275;
@@ -56,8 +57,11 @@ classdef iv < handle
         rgb_mat;
         
         ui_general_weight;
-        ui_tonemapping_weight;
+        ui_tonemapping_main_weight;
+        ui_tonemapping_channels_weight;
+        ui_tonemapping_histogram_weight;
         ui_pixelinfo_weight;
+        ui_selection_weight;
     end
     
     properties(Access = protected)
@@ -115,14 +119,16 @@ classdef iv < handle
             [varargin, parent] = arg(varargin, 'parent', [], false);
             [varargin, obj.rgb_mat] = arg(varargin, 'rgb_mat', [], false);
             [varargin, obj.with_general] = arg(varargin, 'with_general', obj.default_with_general);
-            [varargin, ui_channels_weight] = arg(varargin, 'ui_channels_weight', ...
-                obj.default_ui_channels_weight, false);
-            [varargin, ui_histogram_weight] = arg(varargin, 'ui_histogram_weight', ...
-                obj.default_ui_histogram_weight, false);
-            [varargin, obj.ui_tonemapping_weight] = arg(varargin, 'ui_tonemapping_weight', ...
-                obj.default_ui_tonemapping_weight, false);
+            [varargin, obj.ui_tonemapping_main_weight] = arg(varargin, 'ui_tonemapping_main_weight', ...
+                obj.default_ui_tonemapping_main_weight, false);
+            [varargin, obj.ui_tonemapping_channels_weight] = arg(varargin, 'ui_tonemapping_channels_weight', ...
+                obj.default_ui_tonemapping_channels_weight, false);
+            [varargin, obj.ui_tonemapping_histogram_weight] = arg(varargin, 'ui_tonemapping_histogram_weight', ...
+                obj.default_ui_tonemapping_histogram_weight, false);
             [varargin, obj.ui_pixelinfo_weight] = arg(varargin, 'ui_pixelinfo_weight', ...
                 obj.default_ui_pixelinfo_weight, false);
+            [varargin, obj.ui_selection_weight] = arg(varargin, 'ui_selection_weight', ...
+                obj.default_ui_selection_weight, false);
             if ~isempty(varargin)
                 unmatched = varargin(cellfun(@ischar, varargin));
                 unmatched = sprintf('%s, ', unmatched{:});
@@ -166,9 +172,13 @@ classdef iv < handle
             obj.ui_initialize();
             
             obj.tonemapper = tonemapper('callback', @obj.paint);
-            obj.tonemapper.create_ui(obj.ui.l3_left_tonemapping, ...
-                'ui_channels_weight', ui_channels_weight, ...
-                'ui_histogram_weight', ui_histogram_weight);
+            obj.tonemapper.create_ui(obj.ui.l2_tm_main.Parent, ...
+                'ui_main_weight', ui_tonemapping_main_weight, ...
+                'ui_channels_weight', ui_tonemapping_channels_weight, ...
+                'ui_histogram_weight', ui_tonemapping_histogram_weight, ...
+                'panel_main', obj.ui.l2_tm_main, ...
+                'panel_channels', obj.ui.l2_tm_channels, ...
+                'panel_histogram', obj.ui.l2_tm_histogram);
             
             obj.ui_layout_finalize();
             obj.axes_handle.Position = [0, 0, 1, 1];
@@ -297,24 +307,29 @@ classdef iv < handle
     methods(Access = protected)
         function ui_layout(obj)
             obj.ui.l0 = uix.HBoxFlex('Parent', obj.parent_handle, 'Spacing', 5);
-            obj.ui.l1_left_tabs = uix.TabPanel('Parent', obj.ui.l0);
+            obj.ui.l1_left = uix.VBoxFlex('Parent', obj.ui.l0, 'Spacing', 5);
             obj.ui.l1_right = uix.VBox('Parent', obj.ui.l0);
-            obj.ui.l2_left_meta = uix.VBoxFlex('Parent', obj.ui.l1_left_tabs, 'Spacing', 5);
-            % container for tonemapping widget (including hist_widget)
-            obj.ui.l3_left_tonemapping = uipanel(obj.ui.l2_left_meta);
+            % containers for tonemapping widgets (including hist_widget)
+            obj.ui.l2_tm_main = uix.BoxPanel('Parent', obj.ui.l1_left, ...
+                'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
+            obj.ui.l2_tm_channels = uix.BoxPanel('Parent', obj.ui.l1_left, ...
+                'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
+            obj.ui.l2_tm_histogram = uix.BoxPanel('Parent', obj.ui.l1_left, ...
+                'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
             % container for pixel info
-            obj.ui.l3_left_pixel_info = uix.VBoxFlex('Parent', obj.ui.l2_left_meta, 'Spacing', 5);
+            obj.ui.l2_pixel_info = uix.BoxPanel('Parent', obj.ui.l1_left, ...
+                'Title', 'Pixel info', 'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
             % image selection container
-            obj.ui.l2_left_selection = uix.VBox('Parent', obj.ui.l1_left_tabs);
-            obj.ui.l3_left_selection_uip = uipanel('Parent', obj.ui.l2_left_selection);
-            obj.ui.l3_left_comparison_uip = uipanel('Parent', obj.ui.l2_left_selection, ...
+            obj.ui.l2_selection = uix.BoxPanel('Parent', obj.ui.l1_left, ...
+                'Title', 'Selection', 'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
+            obj.ui.l3_selection = uix.VBox('Parent', obj.ui.l2_selection);
+            obj.ui.l4_selection_uip = uipanel('Parent', obj.ui.l3_selection);
+            obj.ui.l4_comparison_uip = uipanel('Parent', obj.ui.l3_selection, ...
                 'Title', 'Comparison', 'Visible', 'off');
-            obj.ui.l4_left_comparison = uix.Grid('Parent', obj.ui.l3_left_comparison_uip);
+            obj.ui.l5_comparison = uix.Grid('Parent', obj.ui.l4_comparison_uip);
             
-            obj.ui.l1_left_tabs.TabTitles = {'meta', 'selection'};
-            obj.ui.l1_left_tabs.TabWidth = 75;
-            obj.ui.l1_left_tabs.FontSize = 8;
-            obj.ui.l1_left_tabs.TabLocation = 'bottom';
+            obj.ui.panels = [obj.ui.l2_tm_main, obj.ui.l2_tm_channels, ...
+                obj.ui.l2_tm_histogram, obj.ui.l2_pixel_info, obj.ui.l2_selection];
         end
         
         function ui_layout_finalize(obj)
@@ -337,28 +352,31 @@ classdef iv < handle
             end
             
             obj.ui.l0.Widths = [obj.left_width, -1];
-            obj.ui.l2_left_meta.Heights = [obj.ui_tonemapping_weight, obj.ui_pixelinfo_weight];
-            obj.ui.l4_left_comparison.Widths = [75, -1];
-            obj.ui.l2_left_selection.Heights = [-1, 0];
+            hist_weight = obj.ui_tonemapping_histogram_weight;
+            obj.ui.l1_left.Heights = [obj.ui_tonemapping_main_weight, ...
+                obj.ui_tonemapping_channels_weight, hist_weight, ...
+                obj.ui_pixelinfo_weight, obj.ui_selection_weight];
+            obj.ui.l5_comparison.Widths = [75, -1];
+            obj.ui.l3_selection.Heights = [-1, 0];
         end
         
         function ui_initialize(obj)
             % image selection list
-            obj.ui.lb_images = uicontrol('Parent', obj.ui.l3_left_selection_uip, ...
+            obj.ui.lb_images = uicontrol('Parent', obj.ui.l4_selection_uip, ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
                 'FontSize', 6, 'Units', 'normalized', 'Position', [0, 0, 1, 1]);
             obj.populate_image_list();
             
             % image comparison UI
-            obj.ui.label_comparison_method = uicontrol('Parent', obj.ui.l4_left_comparison, ...
+            obj.ui.label_comparison_method = uicontrol('Parent', obj.ui.l5_comparison, ...
                 'Style', 'text', 'String', 'method');
-            obj.ui.label_comparison_cmap = uicontrol('Parent', obj.ui.l4_left_comparison, ...
+            obj.ui.label_comparison_cmap = uicontrol('Parent', obj.ui.l5_comparison, ...
                 'Style', 'text', 'String', 'cmap');
-            obj.ui.popup_comparison_method = uicontrol('Parent', obj.ui.l4_left_comparison, ...
+            obj.ui.popup_comparison_method = uicontrol('Parent', obj.ui.l5_comparison, ...
                 'Style', 'popupmenu', 'String', {'sliding', 'horzcat', 'vertcat', ...
                 'A - B', 'B - A', 'abs(A - B)', 'RMSE', 'NRMSE', 'MAD'}, ...
                 'Callback', @obj.callback_ui);
-            obj.ui.popup_comparison_cmap = uicontrol('Parent', obj.ui.l4_left_comparison, ...
+            obj.ui.popup_comparison_cmap = uicontrol('Parent', obj.ui.l5_comparison, ...
                 'Style', 'popupmenu', 'String', {'parula', 'jet', 'hsv', 'hot', ...
                 'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', ...
                 'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag'}, ...
@@ -385,7 +403,7 @@ classdef iv < handle
                 'Position', [0, 0, 1, 1], 'Units', 'normalized');
             
             % pixel info & meta data
-            obj.ui.label_meta = uicontrol(obj.ui.l3_left_pixel_info, ...
+            obj.ui.label_meta = uicontrol(obj.ui.l2_pixel_info, ...
                 'Style', 'edit', 'FontSize', 6, 'FontName', 'MonoSpaced', ...
                 'HorizontalAlignment', 'left', 'Enable', 'inactive', ...
                 'Min', 0, 'Max', 2);
@@ -412,11 +430,11 @@ classdef iv < handle
         function update_comparison_ui(obj)
             % show comparison UI if two images are selected
             if numel(obj.selected_image) == 2
-                obj.ui.l3_left_comparison_uip.Visible = 'on';
-                obj.ui.l2_left_selection.Heights = [-1, 2 * 30 + 10];
+                obj.ui.l4_comparison_uip.Visible = 'on';
+                obj.ui.l3_selection.Heights = [-1, 2 * 30 + 10];
             else
-                obj.ui.l3_left_comparison_uip.Visible = 'off';
-                obj.ui.l2_left_selection.Heights = [-1, 0];
+                obj.ui.l4_comparison_uip.Visible = 'off';
+                obj.ui.l3_selection.Heights = [-1, 0];
             end
         end
         
@@ -503,6 +521,34 @@ classdef iv < handle
             if ~isempty(obj.old_callback_key_release)
                 obj.old_callback_key_release(src, evnt);
             end
+        end
+        
+        function callback_minimize(obj, src, evnt) %#ok<INUSD>
+            % panel minimized or restored
+            panel = src.Parent.Parent.Parent;
+            container = panel.Parent;
+            s = get(container, 'Heights');
+            ind = find([obj.ui.panels] == panel);
+            panel.Minimized = ~panel.Minimized;
+            if panel.Minimized
+                s(ind) = 18;
+                obj.tonemapper.update_hists = false;
+            else
+                % restore to initial height
+                if ind == 1
+                    s(ind) = obj.ui_tonemapping_main_weight;
+                elseif ind == 2
+                    s(ind) = obj.ui_tonemapping_channels_weight;
+                elseif ind == 3
+                    s(ind) = obj.ui_tonemapping_histogram_weight;
+                    obj.tonemapper.update_hists = true;
+                elseif ind == 4
+                    s(ind) = obj.ui_pixelinfo_weight;
+                else
+                    s(ind) = obj.ui_selection_weight;
+                end
+            end 
+            set(container, 'Heights', s);
         end
         
         function callback_scroll(obj, src, evnt)

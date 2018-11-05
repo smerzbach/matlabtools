@@ -26,6 +26,7 @@
 % A simple class for tonemapping image data.
 classdef tonemapper < handle
     properties(Constant)
+        default_main_weight = 7 * 18;
         default_channels_weight = -1;
         default_histogram_weight = -1;
         default_as_onchange = false;
@@ -58,9 +59,18 @@ classdef tonemapper < handle
         orientation = 'horizontal';
         init_done = false;
         
+        % containers for the different UI elements
+        panel_main;
+        panel_channels;
+        panel_histogram;
+        
         font_size = 8;
         font_size_channels = 6;
         label_width = 50;
+        
+        ui_main_weight;
+        ui_channels_weight;
+        ui_histogram_weight;
     end
     
     methods(Access = public)
@@ -68,34 +78,21 @@ classdef tonemapper < handle
             assert(numel(varargin) == 0 || numel(varargin) >= 2, ...
                 'input must be name value pairs.');
             
-            for ii = 1 : 2 : numel(varargin)
-                if ~ischar(varargin{ii})
-                    error('tonemapper:invalid_input', ...
-                        'Inputs should be name-value pairs of parameters.');
-                end
-                
-                switch lower(varargin{ii})
-                    case 'scale'
-                        obj.scale = double(varargin{ii + 1});
-                    case 'offset'
-                        obj.offset = double(varargin{ii + 1});
-                    case 'gamma'
-                        obj.gamma = double(varargin{ii + 1});
-                    case 'method'
-                        method = varargin{ii + 1};
-                        if ~ismember(method, {'simple'})
-                            error('tonemapper:illegal_method', ...
-                                'method must be ''simple''.');
-                        end
-                        obj.method = method;
-                    case 'callback'
-                        obj.callback = varargin{ii + 1};
-                    case 'orientation'
-                        obj.orientation = varargin{ii + 1};
-                    otherwise
-                        error('tonemapper:unsupported_argument', ...
-                            'unknown parameter name %s', varargin{ii});
-                end
+            [varargin, obj.scale] = arg(varargin, 'scale', 1, false);
+            [varargin, obj.offset] = arg(varargin, 'offset', 0, false);
+            [varargin, obj.gamma] = arg(varargin, 'gamma', 1, false);
+            [varargin, obj.method] = arg(varargin, 'method', obj.method, false);
+            [varargin, obj.callback] = arg(varargin, 'callback', obj.callback, false);
+            [varargin, obj.orientation] = arg(varargin, 'orientation', obj.orientation, false);
+            
+            if ~isempty(varargin)
+                error('tonemapper:unsupported_argument', ...
+                    'unknown parameter name %s', varargin{1});
+            end
+            
+            if ~ismember(obj.method, {'simple'})
+                error('tonemapper:illegal_method', ...
+                    'method must be ''simple''.');
             end
         end
         
@@ -143,20 +140,20 @@ classdef tonemapper < handle
         function handles = create_ui(obj, parent, varargin)
             if ~exist('parent', 'var') || isempty(parent)
                 parent = figure();
+                obj.parent = uipanel('Parent', obj.parent);
             end
             
             obj.parent = parent;
-            [varargin, ui_channels_weight] = arg(varargin, 'ui_channels_weight', obj.default_channels_weight, false);
-            [varargin, ui_histogram_weight] = arg(varargin, 'ui_histogram_weight', obj.default_histogram_weight, false); %#ok<ASGLU>
-            
-            if ~isa(obj.parent, 'matlab.ui.container.Panel')
-                obj.parent = uipanel('Parent', obj.parent);
-            end
-            obj.parent.Title = 'Tonemapping';
+            [varargin, obj.ui_main_weight] = arg(varargin, 'ui_main_weight', obj.default_main_weight, false);
+            [varargin, obj.ui_channels_weight] = arg(varargin, 'ui_channels_weight', obj.default_channels_weight, false);
+            [varargin, obj.ui_histogram_weight] = arg(varargin, 'ui_histogram_weight', obj.default_histogram_weight, false);
+            [varargin, obj.panel_main] = arg(varargin, 'panel_main', [], false);
+            [varargin, obj.panel_channels] = arg(varargin, 'panel_channels', [], false);
+            [varargin, obj.panel_histogram] = arg(varargin, 'panel_histogram', [], false); %#ok<ASGLU>
             
             obj.ui_layout();
             obj.ui_initialize();
-            obj.ui_layout_finalize(ui_channels_weight, ui_histogram_weight);
+            obj.ui_layout_finalize();
             handles = obj.ui;
         end
         
@@ -410,104 +407,111 @@ classdef tonemapper < handle
         
         function ui_layout(obj)
             % set up gui layout
-            obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
-            
-            % top part of UI (scale, offset, ...)
-            obj.ui.l1_top = uix.VBox('Parent', obj.ui.l0, 'Spacing', 2, 'Padding', 1);
-            
-            % middle part of UI (channel selection)
-            obj.ui.uip_channels = uipanel(obj.ui.l0, 'Units', 'normalized', ...
-                'Position', [0, 0, 1, 1], 'Title', 'Channels');
-            obj.ui.l1_channels = uix.VBox('Parent', obj.ui.uip_channels);
-            
-            % bottom part of UI (histogram widget)
-            obj.ui.l1_bot = uipanel('Parent', obj.ui.l0, ...
-                'Units', 'normalized', 'Position', [0, 0, 1, 1]);
+            if ~isempty(obj.panel_main) && ~isempty(obj.panel_channels) && ~isempty(obj.panel_histogram)
+                % all containers created externally
+                obj.ui.l0 = obj.panel_main.Parent;
+                obj.ui.l1_main = obj.panel_main;
+                obj.ui.l1_channels = obj.panel_channels;
+                obj.ui.l1_hist = obj.panel_histogram;
+            else
+                % top part of UI (scale, offset, ...)
+                obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
+                obj.ui.l1_main = uix.BoxPanel('Parent', obj.ui.l0);
+                % middle part of UI (channel selection)
+                obj.ui.l1_channels = uix.BoxPanel('Parent', obj.ui.l0);
+                % bottom part of UI (histogram widget)
+                obj.ui.l1_hist = uix.BoxPanel('Parent', obj.ui.l0);
+            end
+            set(obj.ui.l1_main, 'Title', 'Tonemapping', 'FontSize', 7);
+            set(obj.ui.l1_channels, 'Title', 'Channels', 'FontSize', 7);
+            set(obj.ui.l1_hist, 'Title', 'Histogram', 'FontSize', 7);
+            obj.ui.l2_main = uix.VBox('Parent', obj.ui.l1_main, 'Spacing', 2, 'Padding', 1);
+            obj.ui.l2_channels = uix.VBox('Parent', obj.ui.l1_channels);
         end
         
-        function ui_layout_finalize(obj, channels_weight, histogram_weight) %#ok<INUSD>
+        function ui_layout_finalize(obj)
             % finish setting up layout
-            channels_weight = default('channels_weight', obj.default_channels_weight);
-            histogram_weight = default('histogram_weight', obj.default_histogram_weight);
-            obj.ui.l0.Heights = [6 * 18, channels_weight, histogram_weight];
-            obj.ui.l1_channels.Heights = [18, -1];
+            cs = obj.ui.l0.Children;
+            mask = cs == obj.ui.l1_main | cs == obj.ui.l1_channels | cs == obj.ui.l1_hist;
+            obj.ui.l0.Heights(mask) = [obj.ui_main_weight, obj.ui_channels_weight, obj.ui_histogram_weight];
+            obj.ui.l2_channels.Heights = [-1, 18];
         end
         
         function ui_initialize(obj)
             obj.init_done = false;
 %             % assigned image
-%             obj.ui.label_assigned = uicontrol('Parent', obj.ui.l1_top, ...
+%             obj.ui.label_assigned = uicontrol('Parent', obj.ui.l2_main, ...
 %                 'style', 'text', 'String', 'image', ...
 %                 'HorizontalAlignment', 'right');
-%             obj.ui.popup_assigned = uicontrol('Parent', obj.ui.l1_top, ...
+%             obj.ui.popup_assigned = uicontrol('Parent', obj.ui.l2_main, ...
 %                 'style', 'popupmenu', 'String', {''}, ...
 %                 'Value', 1, 'Callback', @obj.callback_ui);
             
             % method
-            obj.ui.label_method = label(obj.ui.l1_top, ...
+            obj.ui.label_method = label(obj.ui.l2_main, ...
                 {'String', 'method', 'Style', 'text', ...
                 'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
                 {'style', 'popupmenu', 'String', {'simple', 'reinhard', 'exposure'}, 'Value', 1, ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
             obj.ui.popup_method = obj.ui.label_method.control;
             % scale
-            obj.ui.label_scale = label(obj.ui.l1_top, ...
+            obj.ui.label_scale = label(obj.ui.l2_main, ...
                 {'String', 'scale', 'Style', 'text', ...
                 'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
                 {'style', 'edit', 'String', num2str(obj.scale), ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
             obj.ui.edit_scale = obj.ui.label_scale.control;
             % offset
-            obj.ui.label_offset = label(obj.ui.l1_top, ...
+            obj.ui.label_offset = label(obj.ui.l2_main, ...
                 {'String', 'offset', 'Style', 'text', ...
                 'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
                 {'style', 'edit', 'String', num2str(obj.offset), ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
             obj.ui.edit_offset = obj.ui.label_offset.control;
             % gamma
-            obj.ui.label_gamma = label(obj.ui.l1_top, ...
+            obj.ui.label_gamma = label(obj.ui.l2_main, ...
                 {'String', 'gamma', 'Style', 'text', ...
                 'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
                 {'style', 'edit', 'String', num2str(obj.gamma), ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
             obj.ui.edit_gamma = obj.ui.label_gamma.control;
             % autoscale prctile
-            obj.ui.label_autoscale_prctile = label(obj.ui.l1_top, ...
+            obj.ui.label_autoscale_prctile = label(obj.ui.l2_main, ...
                 {'String', 'prctile', 'Style', 'text', ...
                 'FontSize', obj.font_size, 'HorizontalAlignment', 'right'}, ...
                 {'Style', 'edit', 'String', num2str(obj.autoscale_prctile), ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
             obj.ui.edit_autoscale_prctile = obj.ui.label_autoscale_prctile.control;
             % auto scale
-            obj.ui.l2_top = uix.HBox('Parent', obj.ui.l1_top);
-            uix.Empty('Parent', obj.ui.l2_top);
-            obj.ui.cb_as_onChange = uicontrol(obj.ui.l2_top, 'Units', 'normalized', ...
-                'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', false, ...
-                'String', 'onChange', 'Callback', @obj.callback_ui);
+            obj.ui.l2_top = uix.HBox('Parent', obj.ui.l2_main);
             obj.ui.button_autoscale = uicontrol('Parent', obj.ui.l2_top, ...
                 'Style', 'pushbutton', 'String', 'autoscale', ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui);
+            obj.ui.cb_as_onChange = uicontrol(obj.ui.l2_top, 'Units', 'normalized', ...
+                'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', false, ...
+                'String', 'onChange', 'Callback', @obj.callback_ui);
+            uix.Empty('Parent', obj.ui.l2_top);
             
             labels = {obj.ui.label_method, obj.ui.label_scale, obj.ui.label_offset, ...
                 obj.ui.label_gamma, obj.ui.label_autoscale_prctile};
             cfun(@(l) l.setLabelSize(obj.label_width), labels);
             
             % channels
-            obj.ui.l2_channels = uix.HBox('Parent', obj.ui.l1_channels);
-            obj.ui.lb_channels = uicontrol('Parent', obj.ui.l1_channels, ...
+            obj.ui.lb_channels = uicontrol('Parent', obj.ui.l2_channels, ...
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
                 'FontSize', obj.font_size_channels);
-            obj.ui.pb_select_all = uicontrol(obj.ui.l2_channels, 'Units', 'normalized', ...
+            obj.ui.l3_channels = uix.HBox('Parent', obj.ui.l2_channels);
+            obj.ui.pb_select_all = uicontrol(obj.ui.l3_channels, 'Units', 'normalized', ...
                 'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'pushbutton', ...
                 'String', 'select all', 'Callback', @obj.callback_ui);
-            obj.ui.cb_raw_mode = uicontrol(obj.ui.l2_channels, 'Units', 'normalized', ...
+            obj.ui.cb_raw_mode = uicontrol(obj.ui.l3_channels, 'Units', 'normalized', ...
                 'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', obj.raw_mode, ...
                 'String', 'raw mode', 'Callback', @obj.callback_ui);
             obj.populate_channel_list();
             
             % create histogram widget
-            obj.hist_widget = hist_widget(obj.ui.l1_bot, ...
+            obj.hist_widget = hist_widget(obj.ui.l1_hist, ...
                 'orientation', 'vertical', ...
                 'callback', @obj.callback_hist_widget); %#ok<CPROP>
             
@@ -523,6 +527,7 @@ classdef tonemapper < handle
                 chan_names(empty) = cellfun(@(x) sprintf('ch%03d', x), ...
                     num2cell(ch_inds(empty)), 'UniformOutput', false);
                 obj.ui.lb_channels.String = chan_names;
+                obj.ui.lb_channels.Value = obj.get_selected_channels();
             end
         end
         
