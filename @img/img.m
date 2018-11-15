@@ -54,7 +54,7 @@ classdef img < handle & matlab.mixin.Copyable
         interpolant_dirty; % indicates the interpolant requires an update when pixel values have changed
         viewers; % set of viewer objects that update as soon as the image changes
         listener_handle;
-        silent = true; % set this flag to true to temporarily disable listener callbacks
+        silent = false; % set this flag to true to temporarily disable listener callbacks
     end
     
     methods(Access = public)
