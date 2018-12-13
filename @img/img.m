@@ -1310,7 +1310,7 @@ classdef img < handle & matlab.mixin.Copyable
             channel_str = tb.to_str(obj.channel_names);
         end
         
-        function set_channel_names(obj, channel_names)
+        function obj = set_channel_names(obj, channel_names)
             % update the image's channel names
             if ischar(channel_names) || isnumeric(channel_names)
                 channel_names = num2cell(channel_names);
@@ -1535,7 +1535,7 @@ classdef img < handle & matlab.mixin.Copyable
                 obj_out.assign(obj.cdata(:, :, inds, :));
                 obj_out.interpolant_dirty = true;
             elseif obj.is_XYZ()
-                if ~exist('conversion_mat', 'var') || isempty(conversion_mat)
+                if isempty(conversion_mat)
                     mat_rgb = tb.xyz2rgb_mat('cie');
                 elseif ischar(conversion_mat)
                     mat_rgb = tb.xyz2rgb_mat(conversion_mat);
