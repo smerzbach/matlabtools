@@ -44,7 +44,7 @@
 #include <mex.h>
 
 #define TINYEXR_IMPLEMENTATION
-#include "tinyexr.h"
+#include "../external/tinyexr/tinyexr.h"
 
 #ifdef _MSC_VER
 #define strncpy_s strncpy
@@ -200,6 +200,7 @@ void mexFunction(int nlhs, mxArray *plhs[],int nrhs, const mxArray *prhs[]) {
                 std::string(", return code: ") + std::to_string(ret) + 
                 std::string(", error message: ") + std::string(err)).c_str());
     }
+    
     delete[] header.channels;
     delete[] header.pixel_types;
     delete[] header.requested_pixel_types;
