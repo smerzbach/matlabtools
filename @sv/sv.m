@@ -354,7 +354,10 @@ classdef sv < handle
                     % left mouse button down
                     [spectrum, spec_struct] = obj.average_spectra(pos(1), pos(2));
                     obj.print_spectrum(spec_struct);
-                    if isempty(obj.ph_spec)
+                    if isempty(obj.ph_spec) || ~isequal(obj.ph_spec.XData, spec_struct.wls)
+                        if ~isempty(obj.ph_spec)
+                            delete(obj.ph_spec);
+                        end
                         if im.is_spectral()
                             obj.ph_spec = plot(obj.ah_spectrum, im.wls, squeeze(spectrum));
                         else
