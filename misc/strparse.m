@@ -83,10 +83,13 @@ function varargout = strparse(input, pattern, numeric) %#ok<INUSD>
     matching = ~cellfun(@isempty, tokens);
     
     if ~any(matching)
-        error('strparse:none_matching', ...
+        varargout = {matching};
+        warning('strparse:none_matching', ...
             'none of the input strings matches the specified pattern');
+        return;
     end
     
+    % determine number of matching groups
     nout = numel(tokens{find(matching, 1)}{1});
     varargout = cell(1, nout + 2);
     varargout{nout + 1} = matching;
