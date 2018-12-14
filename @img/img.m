@@ -38,6 +38,9 @@ classdef img < handle & matlab.mixin.Copyable
         channel_names;
         
         name = '';
+        
+        whitepoint = 'E';
+        colorspace;
     end
     
     properties(Access = public)
@@ -1491,25 +1494,48 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
-        function obj_out = to_XYZ(obj)
+        function obj_out = to_XYZ(obj, conversion_mat)
             % convert image to CIE XYZ color space
+            
+            if ~exist('conversion_mat', 'var')
+                conversion_mat = [];
+            end
+            
             if obj.is_rgb()
-                % might fail for some data types
-                obj_out = obj.copy_without_cdata();
-                obj_out.assign(rgb2xyz(obj.cdata));
+                if isempty(conversion_mat)
+                    if isempty(obj.colorspace) || strcmpi(obj.colorspace, 'srgb')
+                        mat_XYZ = colors.mat_linearSRGB2XYZ(obj.whitepoint);
+                    else
+                        error('img:colorspace_conversion_not_implemented', ...
+                            'conversion from colorspace %s to XYZ is not implemented', ...
+                            obj.colorspace);
+                    end
+                else
+                    mat_XYZ = conversion_mat;
+                end
+                obj_out = mat_XYZ * obj;
                 obj_out.interpolant_dirty = true;
             elseif obj.is_XYZ()
-                % nothing to do
-                obj_out = obj.copy();
+                % nothing to do except grabbing the right channels
+                obj_out = obj.copy_without_cdata();
+                [~, inds] = ismember({'X', 'Y', 'Z'}, obj.channel_names);
+                obj_out.assign(obj.cdata(:, :, inds, :));
+                obj_out.interpolant_dirty = true;
             elseif obj.is_spectral()
                 % convert multispectral image with the CIE XYZ standard
                 % observer curves
-                [cie_xyz, cie_wls] = tb.ciexyz();
-                mat_xyz = interp1(cie_wls, cie_xyz, obj.get_wavelengths(), ...
-                    'linear', 0);
-                
-                % normalize to keep the same energy
-                mat_xyz = mat_xyz ./ max(sum(mat_xyz));
+                if isempty(conversion_mat)
+                    [cie_xyz, cie_wls] = tb.ciexyz();
+                    mat_xyz = interp1(cie_wls, cie_xyz, obj.get_wavelengths(), ...
+                        'linear', 0);
+                    
+                    % normalize to keep the same energy
+                    % TODO: this is not the right way to do this. instead
+                    % one should account for the differential wavelengths
+                    mat_xyz = mat_xyz ./ max(sum(mat_xyz));
+                else
+                    mat_xyz = conversion_mat;
+                end
                 
                 obj_out = mat_xyz * obj;
             else
@@ -1517,7 +1543,7 @@ classdef img < handle & matlab.mixin.Copyable
                     'Conversion from channel format %s to XYZ is not possible.', ...
                     obj.channels_to_str());
             end
-            obj_out.channel_names = {'X', 'Y', 'Z'};
+            obj_out.set_channel_names('XYZ');
         end
         
         function obj_out = to_rgb(obj, conversion_mat)
@@ -1536,10 +1562,10 @@ classdef img < handle & matlab.mixin.Copyable
                 obj_out.interpolant_dirty = true;
             elseif obj.is_XYZ()
                 if isempty(conversion_mat)
-                    mat_rgb = tb.xyz2rgb_mat('cie');
-                elseif ischar(conversion_mat)
-                    mat_rgb = tb.xyz2rgb_mat(conversion_mat);
-                elseif isnumeric(conversion_mat)
+                    % get inverse of RGB -> XYZ matrix
+                    mat_sRGB2XYZ = colors.mat_linearSRGB2XYZ(obj.whitepoint);
+                    mat_rgb = mat_sRGB2XYZ \ eye(3);
+                else
                     mat_rgb = conversion_mat;
                 end
                 obj_out = mat_rgb * obj;
