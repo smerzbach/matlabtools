@@ -66,7 +66,7 @@ function [s, tree] = hdf2struct(input, excludes, skips)
     mv = @make_valid_fieldname;
     
     % initialize outputs
-    tree = ['T ', node.Name];
+    tree = ['T  ', node.Name];
     s = struct();
     
     % list attributes of current node
@@ -79,7 +79,7 @@ function [s, tree] = hdf2struct(input, excludes, skips)
             s.(mv(filename(node.Attributes(ai).Name))) = tmp;
             
             % add to tree string as well
-            tree = [tree, newline, 'A ', node.Attributes(ai).Name]; %#ok<AGROW>
+            tree = [tree, newline, 'A  ', node.Attributes(ai).Name]; %#ok<AGROW>
         end
     end
     
@@ -95,7 +95,7 @@ function [s, tree] = hdf2struct(input, excludes, skips)
         s.(mv(filename(node.Datasets(di).Name))) = tmp;
         
         % add entry to tree string
-        tree = [tree, newline, 'D ', node.Datasets(di).Name, ' [', node.Datasets(di).Datatype.Class, ']']; %#ok<AGROW>
+        tree = [tree, newline, 'D  ', node.Datasets(di).Name, ' [', node.Datasets(di).Datatype.Class, ']']; %#ok<AGROW>
         if ~isempty(node.Datasets(di).Dims)
             tree = [tree, ' (', sprintf('%d, ', node.Datasets(di).Dims), ')']; %#ok<AGROW>
         end
@@ -103,10 +103,16 @@ function [s, tree] = hdf2struct(input, excludes, skips)
     
     % recurse into child nodes
     for ci = 1 : numel(node.Groups)
-        [s.(mv(filename(node.Groups(ci).Name))), subtree] = hdf2struct(node.Groups(ci), excludes, skips);
-        
-        % add to tree string as well
-        tree = [tree, newline, subtree]; %#ok<AGROW>
+        node_name = node.Groups(ci).Name;
+        if ~any(cellfun(@(exclude) strcmp(filename(node_name), exclude), excludes))
+            [s.(mv(filename(node_name))), subtree] = hdf2struct(node.Groups(ci), excludes, skips);
+            
+            % add to tree string as well
+            tree = [tree, newline, subtree]; %#ok<AGROW>
+        else
+            % only add to tree string and mark as excluded
+            tree = [tree, newline, 'TE ', node_name, ' (excluded)']; %#ok<AGROW>
+        end
     end
     
     % remove redundant fields like 'Data'
