@@ -23,9 +23,13 @@
 % *
 % *************************************************************************
 %
-% Convert arbitrary input to a char array. Works recursively on cell
-% arrays.
-function str = to_str(input)
+% Convert arbitrary input to a string array. Works recursively on cell
+% arrays. By default, the strings can be concatenated and separated by
+% newlines.
+function str = to_str(input, concatenate_strings)
+    if ~isempty('concatenate_strings', 'var') || isempty(concatenate_strings)
+        concatenate_strings = true;
+    end
     if ischar(input)
         str = input;
     elseif isnumeric(input)
@@ -40,7 +44,13 @@ function str = to_str(input)
             str = string(input);
             str = str.char();
         catch err
-            error('Problem converting to string: %s', err.message);
+            error('to_str:cannot_convert_to_string', ...
+                'Problem converting to string: %s', err.message);
         end
+    end
+    str = string(str);
+    
+    if concatenate_strings
+        str = strjoin(str, newline);
     end
 end
