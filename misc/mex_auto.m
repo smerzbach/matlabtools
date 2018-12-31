@@ -85,6 +85,13 @@
 % end
 %
 function mex_auto(varargin)
+    % first check for the dontbuild flag to quickly abort the
+    % time-consuming call of this function
+    [varargin, dontbuild] = arg(varargin, 'dontbuild', false, false);
+    if dontbuild
+        return;
+    end
+    
     % use the call stack to determine the name of the calling function
     st = dbstack(0, '-completenames');
     [mpath, mname] = fileparts(st(2).file);
@@ -108,6 +115,7 @@ function mex_auto(varargin)
     [varargin, headers] = arg(varargin, 'headers', {default_header}, false);
     [varargin, openmp] = arg(varargin, 'openmp', false);
     [varargin, c11, cpp11, cPP11, CPP11] = arg(varargin, {'c11', 'cpp11', 'c++11', 'C++11'}, false);
+    arg(varargin);
     cpp11 = any([c11, cpp11, cPP11, CPP11]);
     
     if openmp
