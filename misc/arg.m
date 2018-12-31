@@ -46,6 +46,17 @@
 % c =
 %      0
 function [args, varargout] = arg(args, names, defaults, match_case)
+    if ~exist('names', 'var') || isempty(names)
+        % error checking mode (if args is not empty, there were unsupported
+        % parameter value pairs)
+        err_str = '';
+        try %#ok<TRYNC>
+            err_str = tb.to_str(args(1 : 2 : end));
+        end
+        assert(isempty(args), 'unsupportet parameter(s): %s', err_str);
+        return;
+    end
+
     if ~iscell(args) && ~isstruct(args)
         error('arg:invalid_input', 'first input must be cell array or struct');
     end
