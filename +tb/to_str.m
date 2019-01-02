@@ -27,7 +27,7 @@
 % arrays. By default, the strings can be concatenated and separated by
 % newlines.
 function str = to_str(input, concatenate_strings)
-    if ~isempty('concatenate_strings', 'var') || isempty(concatenate_strings)
+    if ~exist('concatenate_strings', 'var') || isempty(concatenate_strings)
         concatenate_strings = true;
     end
     if ischar(input)
@@ -35,7 +35,7 @@ function str = to_str(input, concatenate_strings)
     elseif isnumeric(input)
         str = num2str(input);
     elseif iscell(input)
-        str = cellfun(@(x) [tb.to_str(x), ' '], input, 'UniformOutput', false);
+        str = cellfun(@(x) strcat(tb.to_str(x), " "), input, 'UniformOutput', false);
         str = strcat(str{:});
     elseif isa(input, 'function_handle')
         str = func2str(input);
