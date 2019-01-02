@@ -1,12 +1,12 @@
 # matlabtools
 Collection of Matlab toolset, including:
-  * mex automatic compilation: `mex_auto()`
+  * mex automatic compilation: [`mex_auto()`](#mex_auto)
   * convenient helpers: [`col()`](#col), [`row()`](#row), [`afun()`](#afun), [`cfun()`](#cfun), [`cat2()`](#cat2), [`mat2cell2()`](#mat2cell2), [`collage()`](#collage), [`default()`](#default), [`arg()`](#arg), [`strparse()`](#strparse), ...
   * OpenEXR reader & writer, supporting multichannel (e.g. spectral) images, based on tinyexr.h, i.e. header-only compilation: `exr_read()`, `exr_write()`, `exr_query()`
   * embeddable HDR image viewer: `iv()`
+  * spectral image viewer: `sv()`
   * tonemapping widget: `tonemapper()`
   * zoomable & scrollable axes: `zoomaxes()`
-  * spectral image viewer: `sv()`
 
 ## `mex_auto()` - hands-free, on-demand mex-compilation<a href="mex_auto"></a>
 Tired of calling `mex` from hand or looking for build scripts every time you've changed your C/C++ code?
