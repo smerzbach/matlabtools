@@ -39,13 +39,15 @@ classdef roi < handle
         y_stride = 1;
         c_stride = 1;
         
+        channels = [];
+        
         height = 0;
         width = 0;
         num_channels = 0;
     end
     
     methods
-        function obj = roi(mat, im)
+        function obj = roi(mat, varargin)
             % construct roi object from 2 x 2 or 2 x 3 matrix, where
             % mat = [x_min, x_stride, x_max; y_min, y_stride, y_max]
             % optionally, an image array or object can be provided that is used
@@ -69,7 +71,11 @@ classdef roi < handle
                 end
             end
             
-            if exist('im', 'var') && ~isempty(im)
+            [varargin, im] = arg(varargin, 'im', [], false);
+            [varargin, obj.channels] = arg(varargin, 'channels', [], false);
+            arg(varargin);
+            
+            if ~isempty(im)
                 obj.setImage(im);
             end
         end
@@ -261,28 +267,66 @@ classdef roi < handle
                 im = img(im);
             end
             
+            if ~isempty(obj.channels)
+                if isnumeric(obj.channels)
+                    woi = ismember(im.wls, obj.channels);
+                    woi = find(woi);
+                else
+                    woi = ismember(im.channel_names, obj.channels);
+                    woi = find(woi);
+                end
+            else
+                woi = obj.c_min : obj.c_stride : obj.getCMax();
+            end
+            
             assert(im.height == obj.height && im.width == obj.width && ...
                 im.num_channels == obj.num_channels, ...
                 'image dimensions must match the ROI dimensions!');
             
-            if obj.x_stride < 0
+            if obj.x_stride < 0 || obj.y_stride < 0
                 patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), ...
-                    obj.c_min : obj.c_stride : obj.getCMax());
+                    woi);
                 scale = min(1 ./ abs([obj.x_stride, obj.y_stride]));
                 patch.cdata = imresize(patch.cdata, scale, 'bilinear');
-            elseif obj.x_stride < 1
+            elseif obj.x_stride < 1 || obj.y_stride < 1 ...
+                    || mod(obj.x_stride, 1) ~= 0 || mod(obj.y_stride, 1) ~= 0
                 patch = im(obj.y_min : obj.getYMax(), obj.x_min : obj.getXMax(), ...
-                    obj.c_min : obj.c_stride : obj.getCMax());
+                    woi);
                 scale = tb.size2(patch, 1 : 2) .* [obj.y_stride, obj.x_stride];
                 patch.cdata = imresize(patch.cdata, scale, 'bilinear');
             else
                 patch = im(obj.y_min : obj.y_stride : obj.getYMax(), ...
                     obj.x_min : obj.x_stride : obj.getXMax(), ...
-                    obj.c_min : obj.c_stride : obj.getCMax());
+                    woi);
             end
             
             if ~was_img
                 patch = patch.cdata;
+            end
+        end
+        
+        function im = applyChannels(obj, im)
+            was_img = isa(im, 'img');
+            
+            if ~was_img
+                im = img(im);
+            end
+            
+            if ~isempty(obj.channels)
+                if isnumeric(obj.channels)
+                    woi = ismember(im.wls, obj.channels);
+                    woi = find(woi);
+                else
+                    woi = ismember(im.channel_names, obj.channels);
+                    woi = find(woi);
+                end
+            else
+                woi = obj.c_min : obj.c_stride : obj.getCMax();
+            end
+            im = im(:, :, woi);
+            
+            if ~was_img
+                im = im.cdata;
             end
         end
     end
