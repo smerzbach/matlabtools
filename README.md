@@ -1,14 +1,14 @@
 # matlabtools
 Collection of Matlab toolset, including:
   * mex automatic compilation: `mex_auto()`
-  * convenient helpers: `col()`, `row()`, `afun()`, `cfun()`, `cat2()`, `mat2cell2()`, `collage()`, `default()`, `arg()`, `strparse()`, ...
+  * convenient helpers: [`col()`](#col), [`row()`](#row), [`afun()`](#afun), [`cfun()`](#cfun), [`cat2()`](#cat2), [`mat2cell2()`](#mat2cell2), [`collage()`](#collage), [`default()`](#default), [`arg()`](#arg), [`strparse()`](#strparse), ...
   * OpenEXR reader & writer, supporting multichannel (e.g. spectral) images, based on tinyexr.h, i.e. header-only compilation: `exr_read()`, `exr_write()`, `exr_query()`
   * embeddable HDR image viewer: `iv()`
   * tonemapping widget: `tonemapper()`
   * zoomable & scrollable axes: `zoomaxes()`
   * spectral image viewer: `sv()`
 
-## `mex_auto()` - hands-free, on-demand mex-compilation
+## `mex_auto()` - hands-free, on-demand mex-compilation<a href="mex_auto"></a>
 Tired of calling `mex` from hand or looking for build scripts every time you've changed your C/C++ code?
 Add a simple m-script as generic wrapper and put a call to `mex_auto()` in it:
 
@@ -80,7 +80,7 @@ Matlab's toolset is great and all, but some of its functions have annoying synta
 crazy during every-day usage.
 The following list shows alternatives that try to avoid these every-day annoyances:
 
-## `col()` & `row()`
+## `col()` & `row()`<a name="col"></a><a name="row"></a>
 Inline unrolling into column and row vectors:
 ```matlab
 >> c = col(1 : 10)
@@ -99,7 +99,7 @@ c =
 ans =
      1     2     3     4     5     6     7     8     9    10
 ```
-## `cellfun()` &rarr; `cfun()`
+## `cellfun()` &rarr; `cfun()`<a name="cfun"></a>
 `cellfun()` provides a nice way to apply a function to all elements of one or multiple cell arrays
 and can either return one or multiple arrays obtained by concatenating scalar valued output
 arguments, or throw an error when the outputs cannot be concatenated because they're not homogenous
@@ -108,10 +108,10 @@ scalars. In this case, one has to specify an additional name-value pair to make
 For those who are tired of typing this, there is `cfun()`, which is just a wrapper around `cellfun()`
 with 'UniformOutput' set to false.
 
-## `arrayfun()` &rarr; `afun()`
+## `arrayfun()` &rarr; `afun()`<a name="afun"></a>
 `arrayfun` has exactly the same problem and is therefore wrapped by `afun()`.
 
-## `cat()` &rarr; `cat2()`
+## `cat()` &rarr; `cat2()`<a name="cat2"></a>
 `cat()` provides control along which dimension multiple inputs should be concatenated, which comes
 particularly handy in case of cell arrays: `cat(3, channels{:})` concatenates all arrays in `channels`
 along the third dimension. If, however, cat is to be used with an inline function call, it won't work
@@ -122,7 +122,7 @@ channels = function_generating_channels();
 cat(3, channels{:});
 ```
 
-## `mat2cell()` &rarr; `mat2cell2()`
+## `mat2cell()` &rarr; `mat2cell2()`<a name="mat2cell2"></a>
 `mat2cell()` is great for splitting normal arrays into sub-arrays and concatenating those in a cell array.
 Sadly, its usage is annoying as all sub-array dimensions have to be specified explicitly for all input dimensions:
 `array = ones(30, 60, 3); mat2cell(array, [10, 10, 10], [30, 30], size(array, 3));`. Though this allows
@@ -146,7 +146,7 @@ ans =
     {100×200 double}
 ```
 
-## `collage()`
+## `collage()`<a href="collage"></a>
 Suppose you used `mat2cell2()` to create many small patches from an image and apply a function to each patch
 using `cfun()`. You then often want to inspect each patch, or even better, all patches at once. In comes `collage()`:
 ```matlab
@@ -166,7 +166,7 @@ instead of displaying them together.
 If not specified explicitly (`'nr'` and `'nc'`), it attempts arranging them in a square manner.
 Optionally, a border can be added between the patches (`'border_width'`) with a specific value (`'border_value'`).
 
-## `nargin` / `exist()` &rarr; `default()`
+## `nargin` / `exist()` &rarr; `default()`<a name="default"></a>
 When checking if specific input arguments are set, there are two options (if not using something more involved like `inputParser`):
 ```matlab
 function bla(input1, input2)
@@ -215,7 +215,7 @@ end
 This looks for occurrence of the specified named argument inside `varargin`, and assigns a default value if it is missing.
 Multiple named arguments can be listed along with their respective default values in one call.
 
-## `strparse`
+## `strparse`<a href="strparse"></a>
 Parse (multiple) substrings from a cell array of strings using regular expressions, optionally converting to numeric arrays.
 ```matlab
 >> fnames = afun(@(number) sprintf('prefix_num%03d_prop%03.2f.txt', number, 1000 * (rand() - 0.5)), col(1 : 10))
