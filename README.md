@@ -27,6 +27,20 @@ end
 `mex_auto()` by default looks for `bla_mex.cpp` and `bla_mex.mexa64` (or the equivalents on Windows / Mac), and builds `bla_mex.cpp` if it hasn't been compiled or the source is newer than the compiled library.
 
 **WARNING**: You might want to comment out the call to `mex_auto()` for production use if you frequently call your function, as it introduces a noticable overhead!
+Alternatively, you can make use of the optional `'dontbuild'` flag using the [arg](#arg)-function as follows:
+```matlab
+function varargout = bla(varargin)
+    % look for optional parameter-value pair to disable auto compilation
+    [varargin, dontbuild] = arg(varargin, 'dontbuild', false, false);
+    
+    % trigger automatic compilation of bla_mex.cpp if bla_mex.mexa64 is older or non-existent
+    mex_auto('dontbuild', dontbuild);
+
+    varargout = cell(1, nargout);
+    % the actual call to the compiled library
+    [varargout{:}] = bla_mex(varargin{:});
+end
+```
 
 More complex compiler instructions, e.g. multiple source files can be specified by the following name-value pairs:
   * mex_file: desired name of the compiled MEX file, defaults to `['caller_mex', mexext]`
@@ -188,8 +202,8 @@ or if it is empty.
 **WARNING**: `default()` causes significant overhead and therefore should be avoided in functions that are called
 very frequently (e.g. many rapid calls inside a for loop)! It is great for specifying arguments once in a main script.
 
-## `inputParser` &rarr; `arg()`
-Matlab's `inputParser` is powerful, but often way to complex. If the only job is to parse name-value pairs from
+## `inputParser` &rarr; `arg()`<a name="arg"></a>
+Matlab's `inputParser` is powerful, but often way too complex. If the only job is to parse name-value pairs from
 `varargin`, `arg()` is much easier to use:
 ```matlab
 function bla(input1, varargin)
