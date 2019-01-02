@@ -115,7 +115,7 @@ function mex_auto(varargin)
     [varargin, headers] = arg(varargin, 'headers', {default_header}, false);
     [varargin, openmp] = arg(varargin, 'openmp', false);
     [varargin, c11, cpp11, cPP11, CPP11] = arg(varargin, {'c11', 'cpp11', 'c++11', 'C++11'}, false);
-    arg(varargin);
+    
     cpp11 = any([c11, cpp11, cPP11, CPP11]);
     
     if openmp
