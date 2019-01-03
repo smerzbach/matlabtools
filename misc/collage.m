@@ -44,6 +44,7 @@ function imcollage = collage(ims, varargin)
     [varargin, nr] = arg(varargin, 'nr', [], false); % desired number of rows
     [varargin, border_width] = arg(varargin, 'border_width', 0, false); % border width between the frames
     [varargin, border_value] = arg(varargin, 'border_value', 0, false); %#ok<ASGLU> % pixel value of border between the frames
+    arg(varargin);
     
     is_img = cellfun(@(im) isa(im, 'img'), ims);
     ncs = cellfun(@(im) size(im, 3), ims);

@@ -29,7 +29,7 @@
 % match those of the image in the axes object, the image object's CData is
 % directly updated. Otherwise, the image object is deleted and imshow() is
 % called with a subsequent update of the axis limits.
-function [handle, axes_handle] = imshow2(handle, im, varargin)
+function [h, axes_handle] = imshow2(h, im, varargin)
     assert(isa(im, 'img') || (ismatrix(im) || ndims(im) == 3), ...
         'input must be image or 2D / 3D array!');
     
@@ -42,27 +42,27 @@ function [handle, axes_handle] = imshow2(handle, im, varargin)
     size_old = [-1, -1, -1];
     
     % determine if image dimensions have changed
-    if isa(handle, 'matlab.graphics.primitive.Image')
+    if isa(h, 'matlab.graphics.primitive.Image') || isa(h, 'image')
         create = false;
-        size_old = tb.size2(handle.CData, 1 : 3);
+        size_old = tb.size2(h.CData, 1 : 3);
     end
     size_new = [im.h, im.w, im.nc];
     
     if create
-        if isa(handle, 'matlab.graphics.axis.Axes')
-            axes_handle = handle;
+        if isa(h, 'matlab.graphics.axis.Axes') || isa(h, 'axes')
+            axes_handle = h;
         else
-            axes_handle = axes();
+            axes_handle = handle(axes());
         end
     else
-        axes_handle = handle.Parent;
+        axes_handle = h.Parent;
     end
     
     if create
-        handle = imshow(im.cdata, 'Parent', axes_handle, varargin{:});
+        h = handle(imshow(im.cdata, 'Parent', axes_handle, varargin{:}));
     else
         % we can simply update the image handle
-        handle.CData = im.cdata;
+        h.CData = im.cdata;
     end
 
     if any(size_old ~= size_new) || numel(varargin) ~= 0

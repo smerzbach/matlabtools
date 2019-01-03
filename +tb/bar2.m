@@ -40,7 +40,7 @@ function bar_handle = bar2(bar_handle, xdata, ydata, varargin)
     create_new = false;
     if isempty(bar_handle)
         % we have to create new plot objects
-        axes_handle = axes();
+        axes_handle = handle(axes());
         hold(axes_handle, 'on');
         create_new = true;
     elseif isa(bar_handle, 'matlab.graphics.axis.Axes')
@@ -53,9 +53,10 @@ function bar_handle = bar2(bar_handle, xdata, ydata, varargin)
     end
     
     if create_new
-        bar_handle = bar(xdata, ydata, ...
-            'Parent', axes_handle, varargin{:});
+        bar_handle = handle(bar(xdata, ydata, ...
+            'Parent', axes_handle, varargin{:}));
     else
+        bar_handle = handle(bar_handle);
         for ii = 1 : d
             % we can simply update the plot handle
             bar_handle(ii).XData = xdata;

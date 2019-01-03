@@ -93,7 +93,7 @@ classdef zoomaxes < handle
             if any(is_axes)
                 % zoomaxes(axes_handle, ...) has been called -> convert
                 % axes_handle into zoomaxes object
-                obj.ah = varargin{find(is_axes, 1)};
+                obj.ah = handle(varargin{find(is_axes, 1)});
                 varargin(find(is_axes, 1)) = [];
                 % all remaining arguments are supposed to be
                 % parameter value pairs
@@ -101,7 +101,7 @@ classdef zoomaxes < handle
                     set(obj.ah, varargin{:});
                 end
             else
-                obj.ah = axes(varargin{:});
+                obj.ah = handle(axes(varargin{:}));
             end
             obj.fh = tb.get_parent(obj.ah);
             
@@ -441,8 +441,8 @@ classdef zoomaxes < handle
                     obj.update_limits = false;
                     if isempty(obj.ph_rect)
                         hold(obj.ah, 'on');
-                        obj.ph_rect = plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
-                            [p1(2), p1(2), p2(2), p2(2), p1(2)], 'Color', [1, 0, 1]);
+                        obj.ph_rect = handle(plot(obj.ah, [p1(1), p2(1), p2(1), p1(1), p1(1)], ...
+                            [p1(2), p1(2), p2(2), p2(2), p1(2)], 'Color', [1, 0, 1]));
                     else
                         obj.ph_rect.Visible = 'on';
                         set(obj.ph_rect, 'XData', [p1(1), p2(1), p2(1), p1(1), p1(1)], ...

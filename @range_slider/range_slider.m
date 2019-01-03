@@ -55,10 +55,10 @@ classdef range_slider < handle
     methods(Access = public)
         function obj = range_slider(parent, varargin)
             if ~exist('parent', 'var') || isempty(parent)
-                parent = figure();
+                parent = handle(figure());
             end
             
-            obj.uip = uipanel('Parent', parent, 'BorderWidth', 0);
+            obj.uip = handle(uipanel('Parent', parent, 'BorderWidth', 0));
             obj.uip.Units = 'pixels';
             slider_position = obj.uip.Position;
             obj.uip.Units = 'normalized';

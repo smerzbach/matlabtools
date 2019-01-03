@@ -24,7 +24,7 @@
 % *************************************************************************
 % 
 % Wrapper around plot that allows re-using existing plot handles.
-function handle = plot(handle, xdata, ydata, varargin)
+function h = plot(h, xdata, ydata, varargin)
     assert(ismatrix(xdata) && ismatrix(ydata), ...
         'input must be in a 1D or 2D array!');
     
@@ -40,37 +40,38 @@ function handle = plot(handle, xdata, ydata, varargin)
     % create new axes object?
     create = true;
     % determine if image dimensions have changed
-    if isa(handle, 'matlab.graphics.chart.primitive.Line')
+    if isa(h, 'matlab.graphics.chart.primitive.Line')
         create = false;
     end
     
     if create
-        if isa(handle, 'matlab.graphics.axis.Axes')
-            axes_handle = handle;
+        if isa(h, 'matlab.graphics.axis.Axes')
+            axes_handle = h;
         else
-            axes_handle = axes();
+            axes_handle = handle(axes());
         end
     else
-        axes_handle = handle.Parent;
+        h = handle(h);
+        axes_handle = h.Parent;
     end
     
     if create
         % we have to create new plot objects
-        handle = plot(xdata, ydata, 'Parent', axes_handle, varargin{:});
+        h = handle(plot(xdata, ydata, 'Parent', axes_handle, varargin{:}));
     else
-        handle.XData = xdata;
-        handle.YData = ydata;
+        h.XData = xdata;
+        h.YData = ydata;
     end
     
     if numel(varargin)
-        set(handle, varargin{:});
+        set(h, varargin{:});
     end
     
     % if the axes object's data mode is set to manual, the plot objects
     % might lie outside of the axis limits
     % this should be handled outside of the plotting function, though
     if false
-        axes_handle = plot_handle(1).Parent;
+        axes_handle = h(1).Parent;
         axes_handle.XLim = [min(axes_handle.XLim(1), min(xdata)), ...
             max(axes_handle.XLim(2), max(xdata))];
         axes_handle.YLim = [min(axes_handle.YLim(1), min(ydata)), ...

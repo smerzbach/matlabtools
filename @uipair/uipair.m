@@ -58,7 +58,7 @@ classdef uipair < handle
                 ismember(func2str(fn2), {'uipanel', 'uicontrol', 'uispinner'}), ...
                 'fn2 must be one of @uipanel, @uicontrol or @uispinner.');
             
-            obj.parent = parent;
+            obj.parent = handle(parent);
             
             if strcmpi(func2str(fn1), 'uipanel') || strcmpi(func2str(fn1), 'uicontrol')
                 params1 = uipair.standardize_params(params1);
@@ -74,7 +74,7 @@ classdef uipair < handle
                 obj.h2 = uipair.create_ui(fn2, obj.h1, params2);
             else
                 % grid with two uicontrols
-                obj.grid = uix.Grid('Parent', parent);
+                obj.grid = uix.Grid('Parent', obj.parent);
                 obj.h1 = uipair.create_ui(fn1, obj.grid, params1);
                 obj.h2 = uipair.create_ui(fn2, obj.grid, params2);
                 
@@ -92,12 +92,12 @@ classdef uipair < handle
             % create ui element
             switch lower(func2str(fn))
                 case 'uipanel'
-                    h = uipanel(parent, params{:});
+                    h = handle(uipanel(parent, params{:}));
                 case 'uicontrol'
-                    h = uicontrol(parent, params{:});
+                    h = handle(uicontrol(parent, params{:}));
                 otherwise
 %                     try
-                        h = fn(parent, params{:});
+                        h = handle(fn(parent, params{:}));
 %                         h = h.get_handle();
 %                     catch err
 %                         error('uipair:invalid_fcn_handle', ...

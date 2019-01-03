@@ -51,7 +51,7 @@ classdef label < handle
             [varargin, obj.control_dim] = arg(varargin, 'control_dim', obj.control_dim, false);
             [varargin, fill] = arg(varargin, 'fill', false, false); %#ok<ASGLU>
             
-            obj.parent = parent;
+            obj.parent = handle(parent);
             
             is_horizontal = strcmp(obj.orientation, 'horizontal');
             is_vertical = strcmp(obj.orientation, 'vertical');
@@ -65,9 +65,9 @@ classdef label < handle
             end
             
             if ischar(title)
-                obj.text = uicontrol(obj.layout, 'Style', 'Text', 'String', title);
+                obj.text = handle(uicontrol(obj.layout, 'Style', 'Text', 'String', title));
             elseif iscell(title)
-                obj.text = uicontrol(obj.layout, title{:});
+                obj.text = handle(uicontrol(obj.layout, title{:}));
             elseif ishandle(title)
                 obj.text = title;
                 obj.text.Parent = obj.layout;
@@ -78,7 +78,7 @@ classdef label < handle
             end
             
             if iscell(control)
-                obj.control = uicontrol(obj.layout, control{:}, 'Parent', obj.layout);
+                obj.control = handle(uicontrol(obj.layout, control{:}, 'Parent', obj.layout));
             elseif ishandle(control)
                 obj.control = control;
                 obj.control.Parent = obj.layout;

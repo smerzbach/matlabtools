@@ -64,7 +64,7 @@ classdef hist_widget < handle
     methods(Access = public)
         function obj = hist_widget(parent, varargin)
             if ~exist('parent', 'var') || isempty(parent)
-                parent = figure();
+                parent = handle(figure());
             end
             
             [varargin, obj.callback] = arg(varargin, 'callback', [], false);
@@ -85,7 +85,7 @@ classdef hist_widget < handle
             obj.fh = tb.get_parent(obj.ah);
             
             if ~isa(parent, 'matlab.ui.container.internal.UIContainer')
-                obj.parent = uipanel('Parent', obj.parent);
+                obj.parent = handle(uipanel('Parent', obj.parent));
             end
             if isa(obj.parent, 'matlab.ui.container.Panel')
                 obj.parent.Title = 'Histogram';
@@ -184,7 +184,7 @@ classdef hist_widget < handle
     methods(Access = protected)
         function ui_initialize(obj)
             obj.layout.l0 = uix.VBox('Parent', obj.parent);
-            obj.layout.uip = uipanel(obj.layout.l0, 'BorderType', 'none');
+            obj.layout.uip = handle(uipanel(obj.layout.l0, 'BorderType', 'none'));
             obj.layout.l1_top = uix.HBox('Parent', obj.layout.l0, 'Padding', 2);
             
             % lower
@@ -203,8 +203,8 @@ classdef hist_widget < handle
             obj.ui.edit_upper = obj.ui.label_upper.control;
             
             % axes
-            obj.ah = axes(obj.layout.uip, 'FontSize', 6, ...
-                'LabelFontSizeMultiplier', 1, 'TickDir', 'out');
+            obj.ah = handle(axes(obj.layout.uip, 'FontSize', 6, ...
+                'LabelFontSizeMultiplier', 1, 'TickDir', 'out'));
             obj.zah = zoomaxes(obj.ah, 'Parent', obj.layout.uip);
             obj.zah.y_zoom = false;
             obj.zah.y_pan = false;

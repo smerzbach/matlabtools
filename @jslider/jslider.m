@@ -56,10 +56,10 @@ classdef jslider < handle
     methods(Access = public)
         function obj = jslider(parent, varargin)
             if ~exist('parent', 'var') || isempty(parent)
-                parent = figure();
+                parent = handle(figure());
             end
             
-            obj.uip = uipanel('Parent', parent, 'BorderWidth', 0);
+            obj.uip = handle(uipanel('Parent', parent, 'BorderWidth', 0));
             obj.uip.Units = 'pixels';
             slider_position = obj.uip.Position;
             obj.uip.Units = 'normalized';

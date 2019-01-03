@@ -87,10 +87,10 @@ classdef sv < handle
                 obj.default_ui_right_width);
             
             if isempty(parent)
-                parent = figure('Position', [1028, 168, 1366, 800]);
+                parent = handle(figure('Position', [1028, 168, 1366, 800]));
                 p = parent.Position;
                 parent.Position = [p(1), p(2) - (800 - p(4)), 1000, 800];
-                parent = axes(parent);
+                parent = handle(axes(parent));
             end
             obj.fh = tb.get_parent(parent);
             obj.ui_initialize();
@@ -131,32 +131,32 @@ classdef sv < handle
             spec_struct.im_ind = obj.iv.get_selection(1);
             
             % add averaging region
-            spec_struct.marker_handle = plot(obj.ah_image, ...
+            spec_struct.marker_handle = handle(plot(obj.ah_image, ...
                     [spec_struct.x_min - 0.5, spec_struct.x_max + 0.5, spec_struct.x_max + 0.5, ...
                     spec_struct.x_min - 0.5, spec_struct.x_min - 0.5], ...
                     [spec_struct.y_min - 0.5, spec_struct.y_min - 0.5, spec_struct.y_max + 0.5, ...
                     spec_struct.y_max + 0.5, spec_struct.y_min - 0.5], ...
-                    'Color', [1, 0, 1], 'LineWidth', 2);
+                    'Color', [1, 0, 1], 'LineWidth', 2));
                 
             % add text label
-            spec_struct.text_handle = text(obj.ah_image, ...
+            spec_struct.text_handle = handle(text(obj.ah_image, ...
                 spec_struct.x_max + 0.5, spec_struct.y_max, num2str(obj.spec_counter + 1), ...
-                'Color', [1, 0, 1], 'FontWeight', 'bold');
+                'Color', [1, 0, 1], 'FontWeight', 'bold'));
             
             if ~isempty(spec_struct.wls) && all(isnumeric(spec_struct.wls))
-                spec_struct.plot_handle = plot(obj.ah_spectrum, ...
+                spec_struct.plot_handle = handle(plot(obj.ah_spectrum, ...
                     spec_struct.wls, squeeze(spec_struct.spectrum), ...
                     'Color', spec_struct.color, 'LineWidth', 2, ...
                     'DisplayName', sprintf('%s, x = %d, y = %d, im = %03d', ...
                     spec_struct.text_handle.String, spec_struct.x_min, ...
-                    spec_struct.y_min, spec_struct.im_ind));
+                    spec_struct.y_min, spec_struct.im_ind)));
             else
-                spec_struct.plot_handle = plot(obj.ah_spectrum, ...
+                spec_struct.plot_handle = handle(plot(obj.ah_spectrum, ...
                     squeeze(spec_struct.spectrum), ...
                     'Color', spec_struct.color, 'LineWidth', 2, ...
                     'DisplayName', sprintf('%s, x = %d, y = %d, im = %03d', ...
                     spec_struct.text_handle.String, spec_struct.x_min, ...
-                    spec_struct.y_min, spec_struct.im_ind));
+                    spec_struct.y_min, spec_struct.im_ind)));
             end
             
             % set callback for removal
@@ -174,22 +174,22 @@ classdef sv < handle
     methods(Access = protected)
         function ui_initialize(obj)
             obj.layout.l0 = uix.HBoxFlex('parent', obj.fh, 'Spacing', 4);
-            obj.layout.l1_iv = uipanel(obj.layout.l0);
+            obj.layout.l1_iv = handle(uipanel(obj.layout.l0));
             obj.layout.l1_plots = uix.VBoxFlex('Parent', obj.layout.l0, 'Spacing', 4);
-            obj.layout.l2_spectrum = uipanel(obj.layout.l1_plots);
+            obj.layout.l2_spectrum = handle(uipanel(obj.layout.l1_plots));
             obj.layout.l2_pixel_info = uix.HBoxFlex('Parent', obj.layout.l1_plots);
             obj.layout.l2_options = uix.Grid('Parent', obj.layout.l1_plots);
             
             % axes
-            obj.ah_spectrum = axes(obj.layout.l2_spectrum);
+            obj.ah_spectrum = handle(axes(obj.layout.l2_spectrum));
             obj.zah_spectrum = zoomaxes(obj.ah_spectrum);
             obj.zah_spectrum.x_pan = false;
             obj.zah_spectrum.x_zoom = false;
             
             % pixel info
-            obj.ui.edit_pixel_info = uicontrol(obj.layout.l2_pixel_info, ...
+            obj.ui.edit_pixel_info = handle(uicontrol(obj.layout.l2_pixel_info, ...
                 'Style', 'edit', 'Max', 2, 'FontSize', 7, ...
-                'HorizontalAlignment', 'left');
+                'HorizontalAlignment', 'left'));
             
             % options
             obj.layout.l3_options_group1 = uix.HButtonBox('Parent', obj.layout.l2_options);
@@ -204,9 +204,9 @@ classdef sv < handle
             obj.ui.spinner_selector_radius = tmp.h2;
             tmp.grid.Widths = [100, 50];
             % get obj
-            obj.ui.bt_get_object = uicontrol('Parent', obj.layout.l3_options_group1, ...
+            obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_options_group1, ...
                 'Style', 'pushbutton', 'String', 'get obj', 'Callback', @obj.callback_ui, ...
-                'FontSize', 6, 'ToolTip', 'create viewer variable in workspace');
+                'FontSize', 6, 'ToolTip', 'create viewer variable in workspace'));
         end
         
         function finalize_layout(obj)
@@ -278,10 +278,10 @@ classdef sv < handle
             % highlight square that is used for averaging spectra by a pink
             % rectangle
             if isempty(obj.ph_averaging_area)
-                obj.ph_averaging_area = plot(obj.ah_image, ...
+                obj.ph_averaging_area = handle(plot(obj.ah_image, ...
                     [x_min, x_max, x_max, x_min, x_min], ...
                     [y_min, y_min, y_max, y_max, y_min], ...
-                    'Color', [1, 0, 1]);
+                    'Color', [1, 0, 1]));
             else
                 obj.ph_averaging_area.XData = [x_min - 0.5, x_max + 0.5, x_max + 0.5, x_min - 0.5, x_min - 0.5];
                 obj.ph_averaging_area.YData = [y_min - 0.5, y_min - 0.5, y_max + 0.5, y_max + 0.5, y_min - 0.5];
@@ -359,9 +359,9 @@ classdef sv < handle
                             delete(obj.ph_spec);
                         end
                         if im.is_spectral()
-                            obj.ph_spec = plot(obj.ah_spectrum, im.wls, squeeze(spectrum));
+                            obj.ph_spec = handle(plot(obj.ah_spectrum, im.wls, squeeze(spectrum)));
                         else
-                            obj.ph_spec = plot(obj.ah_spectrum, squeeze(spectrum));
+                            obj.ph_spec = handle(plot(obj.ah_spectrum, squeeze(spectrum)));
                         end
                     else
                         obj.ph_spec.YData = squeeze(spectrum);
