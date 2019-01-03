@@ -183,9 +183,9 @@ classdef hist_widget < handle
     
     methods(Access = protected)
         function ui_initialize(obj)
-            obj.layout.l0 = uix.VBox('Parent', obj.parent);
+            obj.layout.l0 = uiextras.VBox('Parent', obj.parent);
             obj.layout.uip = handle(uipanel(obj.layout.l0, 'BorderType', 'none'));
-            obj.layout.l1_top = uix.HBox('Parent', obj.layout.l0, 'Padding', 2);
+            obj.layout.l1_top = uiextras.HBox('Parent', obj.layout.l0, 'Padding', 2);
             
             % lower
             obj.ui.label_lower = label(obj.layout.l1_top, ...

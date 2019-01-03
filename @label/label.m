@@ -27,10 +27,10 @@
 %
 % Usage:
 %     fh = figure();
-%     l0 = uix.VBox('Parent', fh);
+%     l0 = uiextras.VBox('Parent', fh);
 %     slider_label = label(l0, 'slider 1', ...
 %         {'Style', 'slider', 'Callback', @(src, evnt) disp(src.Value)});
-%     uix.Empty('Parent', l0);
+%     uiextras.Empty('Parent', l0);
 %     l0.Heights = [20, -1];
 classdef label < handle
     properties
@@ -56,9 +56,9 @@ classdef label < handle
             is_horizontal = strcmp(obj.orientation, 'horizontal');
             is_vertical = strcmp(obj.orientation, 'vertical');
             if is_horizontal
-                obj.layout = uix.HBox('Parent', obj.parent);
+                obj.layout = uiextras.HBox('Parent', obj.parent);
             elseif is_vertical
-                obj.layout = uix.VBox('Parent', obj.parent);
+                obj.layout = uiextras.VBox('Parent', obj.parent);
             else
                 error('label:invalid_input', ...
                     '''orientation'' must be ''horizontal'' or ''vertical''.');
@@ -89,7 +89,7 @@ classdef label < handle
             end
             
             if fill
-                uix.Empty('Parent', obj.layout);
+                uiextras.Empty('Parent', obj.layout);
                 if is_horizontal
                     obj.layout.Widths = [obj.text_dim, obj.control_dim, -1];
                 else

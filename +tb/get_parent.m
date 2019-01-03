@@ -35,15 +35,15 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
     parent_handle = [];
     axes_handle = [];
     
-    if isa(input, 'matlab.graphics.axis.Axes')
+    if isa(input, 'matlab.graphics.axis.Axes') || isa(input, 'axes')
         axes_handle = input;
         parent_handle = input.Parent;
-    elseif isa(input, 'matlab.ui.container.Panel')
+    elseif isa(input, 'matlab.ui.container.Panel') || isa(input, 'uipanel')
         parent_handle = input;
-    elseif isa(input, 'matlab.ui.Figure')
+    elseif isa(input, 'matlab.ui.Figure') || isa(input, 'figure')
         figure_handle = input;
         parent_handle = input;
-    elseif isa(input, 'uix.Container')
+    elseif isa(input, 'uix.Container') || isa(input, 'uiextras.Container')
         parent_handle = input;
         figure_handle = input.Parent;
         max_depth = 1000;

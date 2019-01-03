@@ -74,7 +74,7 @@ classdef uipair < handle
                 obj.h2 = uipair.create_ui(fn2, obj.h1, params2);
             else
                 % grid with two uicontrols
-                obj.grid = uix.Grid('Parent', obj.parent);
+                obj.grid = uiextras.Grid('Parent', obj.parent);
                 obj.h1 = uipair.create_ui(fn1, obj.grid, params1);
                 obj.h2 = uipair.create_ui(fn2, obj.grid, params2);
                 

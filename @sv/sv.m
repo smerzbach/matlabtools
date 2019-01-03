@@ -90,7 +90,7 @@ classdef sv < handle
                 parent = handle(figure('Position', [1028, 168, 1366, 800]));
                 p = parent.Position;
                 parent.Position = [p(1), p(2) - (800 - p(4)), 1000, 800];
-                parent = handle(axes(parent));
+                parent = handle(axes('Parent', parent));
             end
             obj.fh = tb.get_parent(parent);
             obj.ui_initialize();
@@ -173,12 +173,12 @@ classdef sv < handle
     
     methods(Access = protected)
         function ui_initialize(obj)
-            obj.layout.l0 = uix.HBoxFlex('parent', obj.fh, 'Spacing', 4);
+            obj.layout.l0 = uiextras.HBoxFlex('parent', obj.fh, 'Spacing', 4);
             obj.layout.l1_iv = handle(uipanel(obj.layout.l0));
-            obj.layout.l1_plots = uix.VBoxFlex('Parent', obj.layout.l0, 'Spacing', 4);
+            obj.layout.l1_plots = uiextras.VBoxFlex('Parent', obj.layout.l0, 'Spacing', 4);
             obj.layout.l2_spectrum = handle(uipanel(obj.layout.l1_plots));
-            obj.layout.l2_pixel_info = uix.HBoxFlex('Parent', obj.layout.l1_plots);
-            obj.layout.l2_options = uix.Grid('Parent', obj.layout.l1_plots);
+            obj.layout.l2_pixel_info = uiextras.HBoxFlex('Parent', obj.layout.l1_plots);
+            obj.layout.l2_options = uiextras.Grid('Parent', obj.layout.l1_plots);
             
             % axes
             obj.ah_spectrum = handle(axes(obj.layout.l2_spectrum));
@@ -192,7 +192,7 @@ classdef sv < handle
                 'HorizontalAlignment', 'left'));
             
             % options
-            obj.layout.l3_options_group1 = uix.HButtonBox('Parent', obj.layout.l2_options);
+            obj.layout.l3_options_group1 = uiextras.HButtonBox('Parent', obj.layout.l2_options);
             obj.layout.l3_options_group1.ButtonSize = [155, 28];
             
             % selector radius

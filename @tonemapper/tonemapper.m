@@ -415,18 +415,18 @@ classdef tonemapper < handle
                 obj.ui.l1_hist = obj.panel_histogram;
             else
                 % top part of UI (scale, offset, ...)
-                obj.ui.l0 = uix.VBoxFlex('Parent', obj.parent);
-                obj.ui.l1_main = uix.BoxPanel('Parent', obj.ui.l0);
+                obj.ui.l0 = uiextras.VBoxFlex('Parent', obj.parent);
+                obj.ui.l1_main = uiextras.BoxPanel('Parent', obj.ui.l0);
                 % middle part of UI (channel selection)
-                obj.ui.l1_channels = uix.BoxPanel('Parent', obj.ui.l0);
+                obj.ui.l1_channels = uiextras.BoxPanel('Parent', obj.ui.l0);
                 % bottom part of UI (histogram widget)
-                obj.ui.l1_hist = uix.BoxPanel('Parent', obj.ui.l0);
+                obj.ui.l1_hist = uiextras.BoxPanel('Parent', obj.ui.l0);
             end
             set(obj.ui.l1_main, 'Title', 'Tonemapping', 'FontSize', 7);
             set(obj.ui.l1_channels, 'Title', 'Channels', 'FontSize', 7);
             set(obj.ui.l1_hist, 'Title', 'Histogram', 'FontSize', 7);
-            obj.ui.l2_main = uix.VBox('Parent', obj.ui.l1_main, 'Spacing', 2, 'Padding', 1);
-            obj.ui.l2_channels = uix.VBox('Parent', obj.ui.l1_channels);
+            obj.ui.l2_main = uiextras.VBox('Parent', obj.ui.l1_main, 'Spacing', 2, 'Padding', 1);
+            obj.ui.l2_channels = uiextras.VBox('Parent', obj.ui.l1_channels);
         end
         
         function ui_layout_finalize(obj)
@@ -483,14 +483,14 @@ classdef tonemapper < handle
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui});
             obj.ui.edit_autoscale_prctile = obj.ui.label_autoscale_prctile.control;
             % auto scale
-            obj.ui.l2_top = uix.HBox('Parent', obj.ui.l2_main);
+            obj.ui.l2_top = uiextras.HBox('Parent', obj.ui.l2_main);
             obj.ui.button_autoscale = handle(uicontrol('Parent', obj.ui.l2_top, ...
                 'Style', 'pushbutton', 'String', 'autoscale', ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui));
             obj.ui.cb_as_onChange = handle(uicontrol(obj.ui.l2_top, 'Units', 'normalized', ...
                 'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', false, ...
                 'String', 'onChange', 'Callback', @obj.callback_ui));
-            uix.Empty('Parent', obj.ui.l2_top);
+            uiextras.Empty('Parent', obj.ui.l2_top);
             
             labels = {obj.ui.label_method, obj.ui.label_scale, obj.ui.label_offset, ...
                 obj.ui.label_gamma, obj.ui.label_autoscale_prctile};
@@ -501,7 +501,7 @@ classdef tonemapper < handle
                 'Units', 'normalized', 'Position', [0, 0, 1, 1], ...
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
                 'FontSize', obj.font_size_channels));
-            obj.ui.l3_channels = uix.HBox('Parent', obj.ui.l2_channels);
+            obj.ui.l3_channels = uiextras.HBox('Parent', obj.ui.l2_channels);
             obj.ui.pb_select_all = handle(uicontrol(obj.ui.l3_channels, 'Units', 'normalized', ...
                 'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'pushbutton', ...
                 'String', 'select all', 'Callback', @obj.callback_ui));
