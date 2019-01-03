@@ -65,9 +65,9 @@ classdef label < handle
             end
             
             if ischar(title)
-                obj.text = handle(uicontrol(obj.layout, 'Style', 'Text', 'String', title));
+                obj.text = handle(uicontrol('Parent', obj.layout, 'Style', 'Text', 'String', title));
             elseif iscell(title)
-                obj.text = handle(uicontrol(obj.layout, title{:}));
+                obj.text = handle(uicontrol('Parent', obj.layout, title{:}));
             elseif ishandle(title)
                 obj.text = title;
                 obj.text.Parent = obj.layout;
@@ -78,7 +78,7 @@ classdef label < handle
             end
             
             if iscell(control)
-                obj.control = handle(uicontrol(obj.layout, control{:}, 'Parent', obj.layout));
+                obj.control = handle(uicontrol('Parent', obj.layout, control{:}, 'Parent', obj.layout));
             elseif ishandle(control)
                 obj.control = control;
                 obj.control.Parent = obj.layout;
@@ -90,17 +90,9 @@ classdef label < handle
             
             if fill
                 uiextras.Empty('Parent', obj.layout);
-                if is_horizontal
-                    obj.layout.Widths = [obj.text_dim, obj.control_dim, -1];
-                else
-                    obj.layout.Heights = [obj.text_dim, obj.control_dim, -1];
-                end
+                obj.layout.Sizes = [obj.text_dim, obj.control_dim, -1];
             else
-                if is_horizontal
-                    obj.layout.Widths = [obj.text_dim, -1];
-                else
-                    obj.layout.Heights = [obj.text_dim, -1];
-                end
+                obj.layout.Sizes = [obj.text_dim, -1];
             end
         end
         
@@ -113,19 +105,11 @@ classdef label < handle
         end
         
         function setLabelSize(obj, dim)
-            if strcmp(obj.orientation, 'horizontal')
-                obj.layout.Widths(1) = dim;
-            else
-                obj.layout.Heights(1) = dim;
-            end
+            obj.layout.Sizes(1) = dim;
         end
         
         function setControlSize(obj, dim)
-            if strcmp(obj.orientation, 'horizontal')
-                obj.layout.Widths(2) = dim;
-            else
-                obj.layout.Heights(2) = dim;
-            end
+            obj.layout.Sizes(2) = dim;
         end
     end
 end

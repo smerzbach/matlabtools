@@ -60,6 +60,7 @@ classdef tonemapper < handle
         init_done = false;
         
         % containers for the different UI elements
+        panel_l0;
         panel_main;
         panel_channels;
         panel_histogram;
@@ -147,9 +148,11 @@ classdef tonemapper < handle
             [varargin, obj.ui_main_weight] = arg(varargin, 'ui_main_weight', obj.default_main_weight, false);
             [varargin, obj.ui_channels_weight] = arg(varargin, 'ui_channels_weight', obj.default_channels_weight, false);
             [varargin, obj.ui_histogram_weight] = arg(varargin, 'ui_histogram_weight', obj.default_histogram_weight, false);
+            [varargin, obj.panel_l0] = arg(varargin, 'panel_l0', [], false);
             [varargin, obj.panel_main] = arg(varargin, 'panel_main', [], false);
             [varargin, obj.panel_channels] = arg(varargin, 'panel_channels', [], false);
-            [varargin, obj.panel_histogram] = arg(varargin, 'panel_histogram', [], false); %#ok<ASGLU>
+            [varargin, obj.panel_histogram] = arg(varargin, 'panel_histogram', [], false);
+            arg(varargin);
             
             obj.ui_layout();
             obj.ui_initialize();
@@ -303,7 +306,7 @@ classdef tonemapper < handle
                 % single channel image and  mode requested -> just
                 % display as grayscale
                 im = repmat(im, 1, 1, 3);
-                im.set_channel_names('RGB');
+                im = im.set_channel_names('RGB');
             elseif im.is_spectral()
                 % spectral images need to be converted to RGB
                 % custom RGB conversion matrix
@@ -319,7 +322,7 @@ classdef tonemapper < handle
                     im_channels(missing) = repmat({zeros(im.h, im.w, 1, im.nf, class(im.cdata))}, ...
                         1, 1, numel(missing));
                     im.cdata = cat(3, im_channels{:});
-                    im.set_channel_names('RGB');
+                    im = im.set_channel_names('RGB');
                 end
                 try
                     im = im.to_rgb();
@@ -409,7 +412,7 @@ classdef tonemapper < handle
             % set up gui layout
             if ~isempty(obj.panel_main) && ~isempty(obj.panel_channels) && ~isempty(obj.panel_histogram)
                 % all containers created externally
-                obj.ui.l0 = obj.panel_main.Parent;
+                obj.ui.l0 = obj.panel_l0;
                 obj.ui.l1_main = obj.panel_main;
                 obj.ui.l1_channels = obj.panel_channels;
                 obj.ui.l1_hist = obj.panel_histogram;
@@ -432,9 +435,11 @@ classdef tonemapper < handle
         function ui_layout_finalize(obj)
             % finish setting up layout
             cs = obj.ui.l0.Children;
-            mask = cs == obj.ui.l1_main | cs == obj.ui.l1_channels | cs == obj.ui.l1_hist;
-            obj.ui.l0.Heights(mask) = [obj.ui_main_weight, obj.ui_channels_weight, obj.ui_histogram_weight];
-            obj.ui.l2_channels.Heights = [-1, 18];
+            mask = cellfun(@(p) isequal(p, obj.ui.l1_main.Position) ...
+                || isequal(p, obj.ui.l1_hist.Position) ...
+                || isequal(p, obj.ui.l1_channels.Position), get(cs, 'Position'));
+            obj.ui.l0.Sizes(mask) = [obj.ui_main_weight, obj.ui_channels_weight, obj.ui_histogram_weight];
+            obj.ui.l2_channels.Sizes = [-1, 18];
         end
         
         function ui_initialize(obj)
@@ -487,7 +492,7 @@ classdef tonemapper < handle
             obj.ui.button_autoscale = handle(uicontrol('Parent', obj.ui.l2_top, ...
                 'Style', 'pushbutton', 'String', 'autoscale', ...
                 'FontSize', obj.font_size, 'Callback', @obj.callback_ui));
-            obj.ui.cb_as_onChange = handle(uicontrol(obj.ui.l2_top, 'Units', 'normalized', ...
+            obj.ui.cb_as_onChange = handle(uicontrol('Parent', obj.ui.l2_top, 'Units', 'normalized', ...
                 'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', false, ...
                 'String', 'onChange', 'Callback', @obj.callback_ui));
             uiextras.Empty('Parent', obj.ui.l2_top);
@@ -502,10 +507,10 @@ classdef tonemapper < handle
                 'Style', 'listbox', 'Min', 0, 'Max', 2, 'Callback', @obj.callback_ui, ...
                 'FontSize', obj.font_size_channels));
             obj.ui.l3_channels = uiextras.HBox('Parent', obj.ui.l2_channels);
-            obj.ui.pb_select_all = handle(uicontrol(obj.ui.l3_channels, 'Units', 'normalized', ...
+            obj.ui.pb_select_all = handle(uicontrol('Parent', obj.ui.l3_channels, 'Units', 'normalized', ...
                 'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'pushbutton', ...
                 'String', 'select all', 'Callback', @obj.callback_ui));
-            obj.ui.cb_raw_mode = handle(uicontrol(obj.ui.l3_channels, 'Units', 'normalized', ...
+            obj.ui.cb_raw_mode = handle(uicontrol('Parent', obj.ui.l3_channels, 'Units', 'normalized', ...
                 'FontSize', obj.font_size, 'Position', [0, 0, 1, 1], 'Style', 'checkbox', 'Value', obj.raw_mode, ...
                 'String', 'raw mode', 'Callback', @obj.callback_ui));
             obj.populate_channel_list();
@@ -550,6 +555,7 @@ classdef tonemapper < handle
         end
         
         function callback_ui(obj, src, evnt) %#ok<INUSD>
+            src = handle(src);
             if src == obj.ui.button_autoscale
                 % trigger autoscale
                 obj.autoScale(true);

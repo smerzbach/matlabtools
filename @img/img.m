@@ -1699,7 +1699,11 @@ classdef img < handle & matlab.mixin.Copyable
             end
             
             if channel_wise
-                channels = squeeze(mat2cell(pixels, obj.height, obj.width, ones(obj.num_channels, 1)));
+                if obj.num_channels > 1
+                	channels = squeeze(mat2cell(pixels, obj.height, obj.width, ones(obj.num_channels, 1)));
+                else
+                    channels = {pixels};
+                end
                 if isscalar(bins)
                     % compute unified bins for all channels
                     pixels_finite = pixels(isfinite(pixels));
@@ -1713,7 +1717,7 @@ classdef img < handle & matlab.mixin.Copyable
                 if numel(bins) == 2 && bins(1) == bins(2)
                     bins(2) = bins(1) + eps(bins(1));
                 end
-                [counts, bins] = cfun(@(channel) histcounts(channel(:), bins), channels);
+                [counts, bins] = cfun(@(channel) hist(channel(:), bins), channels);
                 bins = bins{1};
             else
                 [counts, bins] = histcounts(pixels(:), bins);

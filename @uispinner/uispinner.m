@@ -36,7 +36,7 @@
 % s.decrement();
 % s.increment();
 % s.get_value()
-classdef uispinner < uipair & matlab.mixin.SetGet
+classdef uispinner < uipair
     properties(Constant)
         default_step_size = 1;
         default_value = 0;
@@ -78,14 +78,14 @@ classdef uispinner < uipair & matlab.mixin.SetGet
             [varargin, obj.ui_edit_weight] = arg(varargin, 'ui_edit_weight', obj.default_ui_edit_weight);
             [varargin, obj.ui_button_weight] = arg(varargin, 'ui_button_weight', obj.default_ui_button_weight); %#ok<ASGLU>
             
-            obj.grid.Widths = [obj.ui_edit_weight, obj.ui_button_weight];
+            obj.grid.ColumnSizes = [obj.ui_edit_weight, obj.ui_button_weight];
             obj.display_value();
             obj.h1.Callback = @obj.callback_ui;
             
             obj.uip_buttons = uipair(obj.h2, 'vertical', ...
                 @uicontrol, {'Style', 'pushbutton', 'String', '^', 'Callback', @obj.callback_ui}, ...
                 @uicontrol, {'Style', 'pushbutton', 'String', 'v', 'Callback', @obj.callback_ui});
-            obj.uip_buttons.grid.Heights = [-1, -1];
+            obj.uip_buttons.grid.RowSizes = [-1, -1];
         end
         
         function set.editable(obj, tf)

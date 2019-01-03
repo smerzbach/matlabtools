@@ -79,9 +79,9 @@ classdef uipair < handle
                 obj.h2 = uipair.create_ui(fn2, obj.grid, params2);
                 
                 if strcmpi(orientation, 'horizontal')
-                    obj.grid.Widths = [-1, -2];
+                    obj.grid.ColumnSizes = [-1, -2];
                 else
-                    obj.grid.Heights = [-2, -1];
+                    obj.grid.RowSizes = [-2, -1];
                 end
             end
         end
@@ -92,9 +92,9 @@ classdef uipair < handle
             % create ui element
             switch lower(func2str(fn))
                 case 'uipanel'
-                    h = handle(uipanel(parent, params{:}));
+                    h = handle(uipanel('Parent', parent, params{:}));
                 case 'uicontrol'
-                    h = handle(uicontrol(parent, params{:}));
+                    h = handle(uicontrol('Parent', parent, params{:}));
                 otherwise
 %                     try
                         h = handle(fn(parent, params{:}));

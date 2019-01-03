@@ -89,7 +89,7 @@ classdef zoomaxes < handle
     
     methods
         function obj = zoomaxes(varargin)
-            is_axes = cellfun(@(arg) isa(arg, 'matlab.graphics.axis.Axes'), varargin);
+            is_axes = cellfun(@(arg) isa(arg, 'matlab.graphics.axis.Axes') || isa(arg, 'axes'), varargin);
             if any(is_axes)
                 % zoomaxes(axes_handle, ...) has been called -> convert
                 % axes_handle into zoomaxes object
@@ -129,8 +129,11 @@ classdef zoomaxes < handle
             % add event listeners to external changes to XLim or YLim
             addlistener(obj.ah, 'XLim', 'PostSet', @obj.callback_xlim);
             addlistener(obj.ah, 'YLim', 'PostSet', @obj.callback_ylim);
-            addlistener(obj.ah, 'ChildAdded', @obj.callback_children);
-            addlistener(obj.ah, 'ChildRemoved', @obj.callback_children);
+            try %#ok<TRYNC>
+                % only available in versions >= R2014b
+                addlistener(obj.ah, 'ChildAdded', @obj.callback_children);
+                addlistener(obj.ah, 'ChildRemoved', @obj.callback_children);
+            end
         end
         
         % convenience function so we can call axis(zoomaxes_obj, ...)

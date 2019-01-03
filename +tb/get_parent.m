@@ -31,13 +31,15 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
         error('get_parent:invalid_input', 'input cannot be empty');
     end
     
+    input = handle(input);
+    
     figure_handle = [];
     parent_handle = [];
     axes_handle = [];
     
     if isa(input, 'matlab.graphics.axis.Axes') || isa(input, 'axes')
         axes_handle = input;
-        parent_handle = input.Parent;
+        parent_handle = handle(input.Parent);
     elseif isa(input, 'matlab.ui.container.Panel') || isa(input, 'uipanel')
         parent_handle = input;
     elseif isa(input, 'matlab.ui.Figure') || isa(input, 'figure')
@@ -45,12 +47,12 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
         parent_handle = input;
     elseif isa(input, 'uix.Container') || isa(input, 'uiextras.Container')
         parent_handle = input;
-        figure_handle = input.Parent;
+        figure_handle = handle(input.Parent);
         max_depth = 1000;
         depth = 0;
-        while ~isa(figure_handle, 'matlab.ui.Figure') && depth < max_depth
+        while ~(isa(figure_handle, 'matlab.ui.Figure') || isa(figure_handle, 'figure')) && depth < max_depth
             try
-                figure_handle = figure_handle.Parent;
+                figure_handle = handle(figure_handle.Parent);
                 depth = depth + 1;
             catch
                 error('get_parent:invalid_input', ...
@@ -58,7 +60,7 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
             end
         end
         
-        if ~isa(figure_handle, 'matlab.ui.Figure')
+        if ~(isa(figure_handle, 'matlab.ui.Figure') || isa(figure_handle, 'figure'))
             error('get_parent:invalid_input', ...
                 'could not find parent figure!');
         end
@@ -68,10 +70,10 @@ function [figure_handle, parent_handle, axes_handle] = get_parent(input)
     end
 
     if isempty(parent_handle) && ~isempty(axes_handle)
-        parent_handle = axes_handle.Parent;
+        parent_handle = handle(axes_handle.Parent);
     end
 
     if isempty(figure_handle)
-        figure_handle = ancestor(parent_handle, 'figure');
+        figure_handle = handle(ancestor(parent_handle, 'figure'));
     end
 end

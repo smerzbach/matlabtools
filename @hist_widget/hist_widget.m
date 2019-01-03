@@ -84,10 +84,13 @@ classdef hist_widget < handle
             obj.ui_initialize();
             obj.fh = tb.get_parent(obj.ah);
             
-            if ~isa(parent, 'matlab.ui.container.internal.UIContainer')
-                obj.parent = handle(uipanel('Parent', obj.parent));
+            if ~isa(parent, 'matlab.ui.container.internal.UIContainer') && ...
+                    ~isa(parent, 'uipanel') && ~isa(parent, 'uiextras.Container')
+                obj.parent = handle(uiextras.Panel('Parent', obj.parent));
             end
-            if isa(obj.parent, 'matlab.ui.container.Panel')
+            if isa(obj.parent, 'matlab.ui.container.Panel') || ...
+                    isa(obj.parent, 'uipanel') || ...
+                    isa(obj.parent, 'uiextras.Panel')
                 obj.parent.Title = 'Histogram';
             end
             
@@ -117,8 +120,10 @@ classdef hist_widget < handle
             
             num_pix = obj.getNumPixels();
             
-            mi = min(obj.image.cdata(:), [], 'omitnan');
-            ma = max(obj.image.cdata(:), [], 'omitnan');
+            tmp = obj.image.cdata(:);
+            tmp(isnan(tmp)) = [];
+            mi = min(tmp);
+            ma = max(tmp);
             range = ma - mi;
             
             if isempty(obj.hh)
@@ -135,10 +140,12 @@ classdef hist_widget < handle
             [obj.counts, obj.bins] = obj.image.hist('bins', num_bins, 'channel_wise', true);
             obj.bar_width = mean(diff(obj.bins));
             
-            bins = obj.bins(1 : end - 1) + obj.bar_width / 2; %#ok<PROPLC>
-            obj.hh = cfun(@(h) bar(obj.ah, bins, h, ...
-                'EdgeColor', 'none', 'FaceAlpha', 0.5), obj.counts); %#ok<PROPLC>
+            obj.hh = cfun(@(h) handle(bar(obj.ah, obj.bins, h, ...
+                'EdgeColor', 'none')), obj.counts);
             obj.hh = [obj.hh{:}];
+            try %#ok<TRYNC>
+                set(obj.hh, 'FaceAlpha', 0.5);
+            end
         end
         
         function num = getNumPixels(obj)
@@ -169,10 +176,10 @@ classdef hist_widget < handle
             ymax = obj.ah.YLim(2);
             if isempty(obj.ph_rect)
                 hold(obj.ah, 'on');
-                obj.ph_rect = patch(obj.ah, 'Faces', [1, 2, 3, 4], ...
+                obj.ph_rect = handle(patch('Parent', obj.ah, 'Faces', [1, 2, 3, 4], ...
                     'XData', [obj.lower, obj.upper, obj.upper, obj.lower], ... 
                     'YData', [ymin, ymin, ymax, ymax], 'FaceAlpha', 0.25, ...
-                    'FaceColor', [0, 1, 0], 'EdgeColor', [0, 1, 0]);
+                    'FaceColor', [0, 1, 0], 'EdgeColor', [0, 1, 0]));
             else
                 set(obj.ph_rect, ...
                     'XData', [obj.lower, obj.upper, obj.upper, obj.lower, obj.lower], ...
@@ -184,7 +191,7 @@ classdef hist_widget < handle
     methods(Access = protected)
         function ui_initialize(obj)
             obj.layout.l0 = uiextras.VBox('Parent', obj.parent);
-            obj.layout.uip = handle(uipanel(obj.layout.l0, 'BorderType', 'none'));
+            obj.layout.uip = handle(uipanel('Parent', obj.layout.l0, 'BorderType', 'none'));
             obj.layout.l1_top = uiextras.HBox('Parent', obj.layout.l0, 'Padding', 2);
             
             % lower
@@ -203,8 +210,11 @@ classdef hist_widget < handle
             obj.ui.edit_upper = obj.ui.label_upper.control;
             
             % axes
-            obj.ah = handle(axes(obj.layout.uip, 'FontSize', 6, ...
-                'LabelFontSizeMultiplier', 1, 'TickDir', 'out'));
+            obj.ah = handle(axes('Parent', obj.layout.uip, 'FontSize', 6, ...
+                'TickDir', 'out'));
+            try %#ok<TRYNC>
+                obj.ah.LabelFontSizeMultiplier = 1;
+            end
             obj.zah = zoomaxes(obj.ah, 'Parent', obj.layout.uip);
             obj.zah.y_zoom = false;
             obj.zah.y_pan = false;
@@ -218,7 +228,7 @@ classdef hist_widget < handle
             obj.ah.YScale = 'log';
             
             % finalize layout
-            obj.layout.l0.Heights = [-1, 18];
+            obj.layout.l0.Sizes = [-1, 18];
         end
         
         function callback_mouse_down(obj, src, evnt)

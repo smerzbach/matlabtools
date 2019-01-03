@@ -139,9 +139,9 @@ classdef sv < handle
                     'Color', [1, 0, 1], 'LineWidth', 2));
                 
             % add text label
-            spec_struct.text_handle = handle(text(obj.ah_image, ...
+            spec_struct.text_handle = handle(text(...
                 spec_struct.x_max + 0.5, spec_struct.y_max, num2str(obj.spec_counter + 1), ...
-                'Color', [1, 0, 1], 'FontWeight', 'bold'));
+                'Color', [1, 0, 1], 'FontWeight', 'bold', 'Parent', obj.ah_image));
             
             if ~isempty(spec_struct.wls) && all(isnumeric(spec_struct.wls))
                 spec_struct.plot_handle = handle(plot(obj.ah_spectrum, ...
@@ -173,21 +173,21 @@ classdef sv < handle
     
     methods(Access = protected)
         function ui_initialize(obj)
-            obj.layout.l0 = uiextras.HBoxFlex('parent', obj.fh, 'Spacing', 4);
-            obj.layout.l1_iv = handle(uipanel(obj.layout.l0));
+            obj.layout.l0 = uiextras.HBoxFlex('Parent', obj.fh, 'Spacing', 4);
+            obj.layout.l1_iv = handle(uipanel('Parent', obj.layout.l0));
             obj.layout.l1_plots = uiextras.VBoxFlex('Parent', obj.layout.l0, 'Spacing', 4);
-            obj.layout.l2_spectrum = handle(uipanel(obj.layout.l1_plots));
+            obj.layout.l2_spectrum = handle(uipanel('Parent', obj.layout.l1_plots));
             obj.layout.l2_pixel_info = uiextras.HBoxFlex('Parent', obj.layout.l1_plots);
             obj.layout.l2_options = uiextras.Grid('Parent', obj.layout.l1_plots);
             
             % axes
-            obj.ah_spectrum = handle(axes(obj.layout.l2_spectrum));
+            obj.ah_spectrum = handle(axes('Parent', obj.layout.l2_spectrum));
             obj.zah_spectrum = zoomaxes(obj.ah_spectrum);
             obj.zah_spectrum.x_pan = false;
             obj.zah_spectrum.x_zoom = false;
             
             % pixel info
-            obj.ui.edit_pixel_info = handle(uicontrol(obj.layout.l2_pixel_info, ...
+            obj.ui.edit_pixel_info = handle(uicontrol('Parent', obj.layout.l2_pixel_info, ...
                 'Style', 'edit', 'Max', 2, 'FontSize', 7, ...
                 'HorizontalAlignment', 'left'));
             
@@ -202,7 +202,7 @@ classdef sv < handle
                 'minimum', 0, ...
                 'callback', @(value) obj.set_selector_radius(value)});
             obj.ui.spinner_selector_radius = tmp.h2;
-            tmp.grid.Widths = [100, 50];
+            tmp.grid.ColumnSizes = [100, 50];
             % get obj
             obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_options_group1, ...
                 'Style', 'pushbutton', 'String', 'get obj', 'Callback', @obj.callback_ui, ...
@@ -210,8 +210,8 @@ classdef sv < handle
         end
         
         function finalize_layout(obj)
-            obj.layout.l0.Widths = [-2, obj.ui_right_width];
-            obj.layout.l1_plots.Heights = [-1, -2, 30 * numel(obj.layout.l2_options.Heights)];
+            obj.layout.l0.Sizes = [-2, obj.ui_right_width];
+            obj.layout.l1_plots.Sizes = [-1, -2, 30 * numel(obj.layout.l2_options.RowSizes)];
         end
         
         function set_selector_radius(obj, value)
@@ -226,7 +226,7 @@ classdef sv < handle
             str_params = sprintf(['''DisplayName'', ''(x: [%d : %d], y: [%d : %d])'', ...\n', ...
                 '''Color'', [%f, %f, %f]'], s.x_min, s.x_max, s.y_min, s.y_max, s.color);
             str_spec = sprintf('%3.1f, %3.4f;\n', [s.wls(:), s.spectrum(:)]');
-            str_spec = ['[', str_spec(1 : end - 2), '], ...', newline];
+            str_spec = ['[', str_spec(1 : end - 2), '], ...', sprintf('\n')]; %#ok<SPRINTFN>
             str = ['{', str_spec, str_params, '}'];
             obj.ui.edit_pixel_info.String = str;
         end
@@ -296,23 +296,30 @@ classdef sv < handle
         end
         
         function callback_mouse_down(obj, src, evnt)
+            % some plot object / axes clicked
             obj.sel_type = union(obj.sel_type, {obj.fh.SelectionType});
-            if isa(src, 'matlab.graphics.chart.primitive.Line') || ...
-                    isa(src, 'matlab.graphics.primitive.Text')
-                % some plot object clicked
-                if in_axis(obj.fh, obj.ah_spectrum) || in_axis(obj.fh, obj.ah_image)
-                    % remove spectrum plots
-                    ind = find(cellfun(@(s) any([s.plot_handle, s.marker_handle, s.text_handle] == src), ...
-                        num2cell(obj.spectra)));
-                    delete(obj.spectra(ind).marker_handle);
-                    delete(obj.spectra(ind).plot_handle);
-                    delete(obj.spectra(ind).text_handle);
-                    obj.spectra(ind) = [];
-                    
-                end
-            else
-                obj.callback_mouse_motion(src, []);
+            ah = [];
+            if in_axis(obj.fh, obj.ah_spectrum)
+                ah = obj.ah_spectrum;
+            elseif in_axis(obj.fh, obj.ah_image)
+                ah = obj.ah_image;
             end
+            if ~isempty(ah)
+                if any(ismember({'control'}, obj.key_mods))
+                    % right click (not ctrl + left click) -> add spectrum plot
+                    obj.callback_mouse_up(src, []);
+                elseif any(ismember({'alt'}, obj.sel_type))
+                    % ctrl + click / right click -> remove spectrum plot
+                    pos = ah.CurrentPoint(1, 1 : 2);
+                    inside = arrayfun(@(s) all(abs([s.x, s.y] - pos) - 0.5 - ...
+                        [s.x_max - s.x, s.y_max - s.y] < 0), col(obj.spectra));
+                    delete([obj.spectra(inside).marker_handle]);
+                    delete([obj.spectra(inside).plot_handle]);
+                    delete([obj.spectra(inside).text_handle]);
+                    obj.spectra(inside) = [];
+                end
+            end
+            obj.callback_mouse_motion(src, []);
             
             if ~isempty(obj.old_callback_mouse_down)
                 obj.old_callback_mouse_down(src, evnt);
@@ -320,9 +327,7 @@ classdef sv < handle
         end
         
         function callback_mouse_up(obj, src, evnt)
-            if in_axis(obj.fh, obj.ah_image) && ...
-                    any(ismember(obj.sel_type, 'alt')) && ...
-                    any(ismember({'control'}, obj.key_mods))
+            if in_axis(obj.fh, obj.ah_image) && any(ismember({'control'}, obj.key_mods))
                 % ctrl + left / right click -> add spectrum (ctrl + left == right click)
                 pos = obj.ah_image.CurrentPoint;
                 pos = round(pos(1, 1 : 2));

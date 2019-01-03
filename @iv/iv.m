@@ -152,7 +152,7 @@ classdef iv < handle
                 parent = handle(figure());
                 p = parent.Position;
                 parent.Position = [p(1), p(2) - (800 - p(4)), 1000, 800];
-                parent = handle(axes(parent));
+                parent = handle(axes('Parent', parent));
             end
             [obj.figure_handle, obj.parent_handle, obj.axes_handle] = ...
                 tb.get_parent(parent);
@@ -180,6 +180,7 @@ classdef iv < handle
                 'ui_main_weight', obj.ui_tonemapping_main_weight, ...
                 'ui_channels_weight', obj.ui_tonemapping_channels_weight, ...
                 'ui_histogram_weight', obj.ui_tonemapping_histogram_weight, ...
+                'panel_l0', obj.ui.l1_left, ...
                 'panel_main', obj.ui.l2_tm_main, ...
                 'panel_channels', obj.ui.l2_tm_channels, ...
                 'panel_histogram', obj.ui.l2_tm_histogram);
@@ -320,23 +321,26 @@ classdef iv < handle
             obj.ui.l1_left = uiextras.VBoxFlex('Parent', obj.ui.l0, 'Spacing', 5);
             obj.ui.l1_right = uiextras.VBox('Parent', obj.ui.l0);
             % containers for tonemapping widgets (including hist_widget)
-            obj.ui.l2_tm_main = uiextras.BoxPanel('Parent', obj.ui.l1_left, ...
-                'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
-            obj.ui.l2_tm_channels = uiextras.BoxPanel('Parent', obj.ui.l1_left, ...
-                'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
-            obj.ui.l2_tm_histogram = uiextras.BoxPanel('Parent', obj.ui.l1_left, ...
-                'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
+            obj.ui.l2_tm_main = uiextras.BoxPanel('Parent', obj.ui.l1_left, 'FontSize', 7);
+            obj.ui.l2_tm_channels = uiextras.BoxPanel('Parent', obj.ui.l1_left, 'FontSize', 7);
+            obj.ui.l2_tm_histogram = uiextras.BoxPanel('Parent', obj.ui.l1_left, 'FontSize', 7);
             % container for pixel info
             obj.ui.l2_pixel_info = uiextras.BoxPanel('Parent', obj.ui.l1_left, ...
-                'Title', 'Pixel info', 'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
+                'Title', 'Pixel info', 'FontSize', 7);
             % image selection container
             obj.ui.l2_selection = uiextras.BoxPanel('Parent', obj.ui.l1_left, ...
-                'Title', 'Selection', 'FontSize', 7, 'MinimizeFcn', @obj.callback_minimize);
+                'Title', 'Selection', 'FontSize', 7);
             obj.ui.l3_selection = uiextras.VBox('Parent', obj.ui.l2_selection);
             obj.ui.l4_selection_uip = handle(uipanel('Parent', obj.ui.l3_selection));
             obj.ui.l4_comparison_uip = handle(uipanel('Parent', obj.ui.l3_selection, ...
                 'Title', 'Comparison', 'Visible', 'off'));
             obj.ui.l5_comparison = uiextras.Grid('Parent', obj.ui.l4_comparison_uip);
+            
+            obj.ui.l2_tm_main.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_main, obj.ui.l1_left};
+            obj.ui.l2_tm_channels.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_channels, obj.ui.l1_left};
+            obj.ui.l2_tm_histogram.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_histogram, obj.ui.l1_left};
+            obj.ui.l2_pixel_info.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_pixel_info, obj.ui.l1_left};
+            obj.ui.l2_selection.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_selection, obj.ui.l1_left};
             
             obj.ui.panels = [obj.ui.l2_tm_main, obj.ui.l2_tm_channels, ...
                 obj.ui.l2_tm_histogram, obj.ui.l2_pixel_info, obj.ui.l2_selection];
@@ -356,18 +360,18 @@ classdef iv < handle
                 if obj.nf() > 1
                     obj.ui.l1_right.Heights = [obj.slider_height, -1, obj.slider_height];
                 else
-                    obj.ui.l1_right.Heights = [obj.slider_height, -1, 0];
+                    obj.ui.l1_right.Sizes = [obj.slider_height, -1, 0];
                     obj.ui.container_frames.Visible = 'off';
                 end
             end
             
-            obj.ui.l0.Widths = [obj.left_width, -1];
+            obj.ui.l0.Sizes = [obj.left_width, -1];
             hist_weight = obj.ui_tonemapping_histogram_weight;
-            obj.ui.l1_left.Heights = [obj.ui_tonemapping_main_weight, ...
+            obj.ui.l1_left.Sizes = [obj.ui_tonemapping_main_weight, ...
                 obj.ui_tonemapping_channels_weight, hist_weight, ...
                 obj.ui_pixelinfo_weight, obj.ui_selection_weight];
-            obj.ui.l5_comparison.Widths = [75, -1];
-            obj.ui.l3_selection.Heights = [-1, 0];
+            obj.ui.l5_comparison.ColumnSizes = [75, -1];
+            obj.ui.l3_selection.Sizes = [-1, 0];
         end
         
         function ui_initialize(obj)
@@ -393,7 +397,7 @@ classdef iv < handle
                 'Callback', @obj.callback_ui, 'Visible', 'on'));
             
             % slider for image selection
-            obj.ui.container_image_slider = handle(uipanel(obj.ui.l1_right, 'Title', 'image selection'));
+            obj.ui.container_image_slider = handle(uipanel('Parent', obj.ui.l1_right, 'Title', 'image selection'));
             obj.ui.slider_images = jslider(obj.ui.container_image_slider, ...
                 'min', 1, 'max', max(2, numel(obj.images)), 'value', 1, 'PaintTicks', true, ...
                 'PaintTickLabels', true, 'MinorTickSpacing', 1, 'MajorTickSpacing', 10, ...
@@ -401,11 +405,11 @@ classdef iv < handle
                 'Position', [0, 0, 1, 1], 'Units', 'normalized');
             
             % main image axes
-            obj.ui.container_img = handle(uipanel(obj.ui.l1_right));
+            obj.ui.container_img = handle(uipanel('Parent', obj.ui.l1_right));
             obj.axes_handle.Parent = obj.ui.container_img;
             
             % slider bar for frame selection
-            obj.ui.container_frames = handle(uipanel(obj.ui.l1_right, 'Title', 'Frames'));
+            obj.ui.container_frames = handle(uipanel('Parent', obj.ui.l1_right, 'Title', 'Frames'));
             obj.ui.slider_frames = jslider(obj.ui.container_frames, ...
                 'min', 1, 'max', 2, 'value', 1, 'PaintTicks', true, ...
                 'PaintTickLabels', true, 'MinorTickSpacing', 1, 'MajorTickSpacing', 10, ...
@@ -413,7 +417,7 @@ classdef iv < handle
                 'Position', [0, 0, 1, 1], 'Units', 'normalized');
             
             % pixel info & meta data
-            obj.ui.label_meta = handle(uicontrol(obj.ui.l2_pixel_info, ...
+            obj.ui.label_meta = handle(uicontrol('Parent', obj.ui.l2_pixel_info, ...
                 'Style', 'edit', 'FontSize', 6, 'FontName', 'MonoSpaced', ...
                 'HorizontalAlignment', 'left', 'Enable', 'inactive', ...
                 'Min', 0, 'Max', 2));
@@ -441,10 +445,10 @@ classdef iv < handle
             % show comparison UI if two images are selected
             if numel(obj.selected_image) >= 2
                 obj.ui.l4_comparison_uip.Visible = 'on';
-                obj.ui.l3_selection.Heights = [-1, 2 * 30 + 10];
+                obj.ui.l3_selection.Sizes = [-1, 2 * 30 + 10];
             else
                 obj.ui.l4_comparison_uip.Visible = 'off';
-                obj.ui.l3_selection.Heights = [-1, 0];
+                obj.ui.l3_selection.Sizes = [-1, 0];
                 obj.collage = false;
             end
         end
@@ -473,6 +477,7 @@ classdef iv < handle
         end
         
         function callback_ui(obj, src, evnt) %#ok<INUSD>
+            src = handle(src);
             % react to image selections
             if src == obj.ui.lb_images
                 sel = src.Value;
@@ -565,14 +570,12 @@ classdef iv < handle
             end
         end
         
-        function callback_minimize(obj, src, evnt) %#ok<INUSD>
+        function callback_minimize(obj, src, evnt, panel, container) %#ok<INUSL>
             % panel minimized or restored
-            panel = src.Parent.Parent.Parent;
-            container = panel.Parent;
-            s = get(container, 'Heights');
+            s = get(container, 'Sizes');
             ind = find([obj.ui.panels] == panel);
-            panel.Minimized = ~panel.Minimized;
-            if panel.Minimized
+            panel.IsMinimized = ~panel.IsMinimized;
+            if panel.IsMinimized
                 s(ind) = 18;
                 obj.tonemapper.update_hists = false;
             else
@@ -590,7 +593,7 @@ classdef iv < handle
                     s(ind) = obj.ui_selection_weight;
                 end
             end 
-            set(container, 'Heights', s);
+            set(container, 'Sizes', s);
         end
         
         function callback_scroll(obj, src, evnt)

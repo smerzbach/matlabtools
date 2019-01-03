@@ -59,7 +59,12 @@ classdef jslider < handle
                 parent = handle(figure());
             end
             
-            obj.uip = handle(uipanel('Parent', parent, 'BorderWidth', 0));
+            if ~isa(parent, 'uipanel')
+                obj.uip = handle(uipanel('Parent', parent, 'BorderWidth', 0));
+            else
+                obj.uip = handle(parent);
+                obj.uip.BorderWidth = 0;
+            end
             obj.uip.Units = 'pixels';
             slider_position = obj.uip.Position;
             obj.uip.Units = 'normalized';
@@ -86,6 +91,7 @@ classdef jslider < handle
             
             obj.slider = javax.swing.JSlider;
             [obj.slider, obj.container] = javacomponent(obj.slider, p.Results.Position, obj.uip);
+            obj.container = handle(obj.container);
             
             % properly set position
             obj.container.Units = p.Results.Units;
@@ -125,7 +131,11 @@ classdef jslider < handle
 
             obj.slider.StateChangedCallback = @obj.callback_internal;
             obj.slider.MouseWheelMovedCallback = @obj.callback_internal;
-            obj.uip.SizeChangedFcn = @obj.callback_resize;
+            try
+                obj.uip.SizeChangedFcn = @obj.callback_resize;
+            catch
+                obj.uip.ResizeFcn = @obj.callback_resize;
+            end
             obj.callback_changed = p.Results.Callback;
             
             if ~isempty(unmatched)
