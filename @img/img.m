@@ -159,7 +159,7 @@ classdef img < handle & matlab.mixin.Copyable
             if ~isa(other, 'img')
                 obj_copy = obj.copy_without_cdata();
             else
-                if obj.num_channels > other.num_channels
+                if obj.num_channels >= other.num_channels
                     obj_copy = obj.copy_without_cdata();
                 else
                     obj_copy = other.copy_without_cdata();
