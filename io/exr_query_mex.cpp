@@ -84,10 +84,10 @@ void mexFunction( int nlhs, mxArray *plhs[],
             vec_chan_types[i] = (type == TINYEXR_PIXELTYPE_UINT) ? "uint" : 
                 ((type == TINYEXR_PIXELTYPE_HALF) ? "half" : "float");
         }
-
+        
         // attempt to parse comments as custom attribute
         std::string comments;
-        for (size_t i = 0; i < TINYEXR_MAX_ATTRIBUTES; i++) {
+        for (size_t i = 0; i < exr_header.num_custom_attributes; i++) {
             if (exr_header.custom_attributes[i].size && 
                     0 == strcmp(exr_header.custom_attributes[i].name, "comments")) {
                 comments = std::string((char*) exr_header.custom_attributes[i].value);
