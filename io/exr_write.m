@@ -38,8 +38,21 @@
 %   - zips:  zlib compression, one scan line at a time
 % 	- zip:   zlib compression, in blocks of 16 scan lines
 % 	- piz:   piz-based wavelet compression
-function exr_write(im, filename, precision, channel_names, compression)
-    mex_auto('sources', {'exr_write_mex.cpp'}, 'headers', {'tinyexr.h'});
+function exr_write(im, filename, precision, channel_names, compression, varargin)
+    % avoid expensive checks in mex_auto when it's not necessary
+    [varargin, dontbuild] = arg(varargin, 'dontbuild', false, false);
+    arg(varargin);
+    
+    % get folder containing this script
+    mdir = fileparts(mfilename('fullpath'));
+    header_dir = fullfile(mdir, '..', 'external', 'tinyexr');
+    
+    % initiate automatic MEX compilation
+    mex_auto(...
+        'dontbuild', dontbuild, ...
+        'sources', {'exr_write_mex.cpp'}, ...
+        'headers', {'tinyexr.h'}, ...
+        ['-I', header_dir]);
     
     if isa(im, 'img')
         im = im.cdata;

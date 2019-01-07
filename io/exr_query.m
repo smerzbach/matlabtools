@@ -37,8 +37,21 @@
 %   each channel
 % - comments: a string with the contents of a custom header attribute
 %   called comments, if available
-function meta = exr_query(fname)
-    mex_auto();
+function meta = exr_query(fname, varargin)
+    % avoid expensive checks in mex_auto when it's not necessary
+    [varargin, dontbuild] = arg(varargin, 'dontbuild', false, false);
+    arg(varargin);
+    
+    % get folder containing this script
+    mdir = fileparts(mfilename('fullpath'));
+    header_dir = fullfile(mdir, '..', 'external', 'tinyexr');
+    
+    % initiate automatic MEX compilation
+    mex_auto(...
+        'dontbuild', dontbuild, ...
+        'sources', {'exr_query_mex.cpp'}, ...
+        'headers', {'tinyexr.h'}, ...
+        ['-I', header_dir]);
     
     meta = exr_query_mex(fname);
 end

@@ -42,8 +42,21 @@
 %   half precision floats), or an img object if as_img is true
 % - channel_names is a cell array of strings holding the names of each
 %   channel
-function [im, channel_names] = exr_read(fname, requested_pixel_type, as_img, imroi, strides) %#ok<INUSD>
-    mex_auto('sources', {'exr_read_mex.cpp'}, 'headers', {'tinyexr.h'});
+function [im, channel_names] = exr_read(fname, requested_pixel_type, as_img, imroi, strides, varargin) %#ok<INUSL>
+    % avoid expensive checks in mex_auto when it's not necessary
+    [varargin, dontbuild] = arg(varargin, 'dontbuild', false, false);
+    arg(varargin);
+    
+    % get folder containing this script
+    mdir = fileparts(mfilename('fullpath'));
+    header_dir = fullfile(mdir, '..', 'external', 'tinyexr');
+    
+    % initiate automatic MEX compilation
+    mex_auto(...
+        'dontbuild', dontbuild, ...
+        'sources', {'exr_read_mex.cpp'}, ...
+        'headers', {'tinyexr.h'}, ...
+        ['-I', header_dir]);
     
     requested_pixel_type = default('requested_pixel_type', 'single');
     as_img = default('as_img', false);
