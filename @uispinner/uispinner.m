@@ -48,12 +48,17 @@ classdef uispinner < uipair
         default_editable = true;
     end
     
-    properties(Access = protected)
+    properties(GetAccess = public, SetAccess = protected)
         value;
         minimum;
         maximum;
         step_size;
         editable;
+        
+        handles;
+        handle_edit;
+        handle_button_down;
+        handle_button_up;
     end
     
     properties(Access = protected)
@@ -86,6 +91,12 @@ classdef uispinner < uipair
                 @uicontrol, {'Style', 'pushbutton', 'String', '^', 'Callback', @obj.callback_ui}, ...
                 @uicontrol, {'Style', 'pushbutton', 'String', 'v', 'Callback', @obj.callback_ui});
             obj.uip_buttons.grid.RowSizes = [-1, -1];
+            
+            % store handles for direct access
+            obj.handle_edit = obj.h1;
+            obj.handle_button_up = obj.uip_buttons.h1;
+            obj.handle_button_down = obj.uip_buttons.h2;
+            obj.handles = [obj.handle_edit, obj.handle_button_up, obj.handle_button_down];
         end
         
         function set.editable(obj, tf)
@@ -153,7 +164,7 @@ classdef uispinner < uipair
                 end
             end
             if changed
-                obj.callback(obj.value);
+                obj.callback(obj, obj.value);
             end
         end
         
