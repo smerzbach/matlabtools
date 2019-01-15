@@ -93,26 +93,25 @@ classdef iv < handle
                         'UniformOutput', false);
                 end
                 varargin = [varargin{1}(:)', varargin(2 : end)];
-            else
-                % convert non-image numeric ND-arrays (2 <= N <= 4) to
-                % img objects 
-                
-                % only convert those inputs that come before the first
-                % string argument to avoid converting values of
-                % parameter-value pairs
-                first_char_arg = find(cellfun(@ischar, varargin), 1);
-                im_mat_inds = cellfun(@(input) (isnumeric(input) || islogical(input)) ...
-                    && ndims(input) >= 2 ...
-                    && ndims(input) <= 4, varargin);
-                im_mat_inds = find(im_mat_inds);
-                if ~isempty(first_char_arg)
-                    im_mat_inds(im_mat_inds > first_char_arg) = [];
-                end
-                sparse_inds = cellfun(@issparse, varargin);
-                varargin(sparse_inds) = cfun(@full, varargin(sparse_inds));
-                
-                varargin(im_mat_inds) = cfun(@(im) img(im), varargin(im_mat_inds));
             end
+            % convert non-image numeric ND-arrays (2 <= N <= 4) to
+            % img objects 
+
+            % only convert those inputs that come before the first
+            % string argument to avoid converting values of
+            % parameter-value pairs
+            first_char_arg = find(cellfun(@ischar, varargin), 1);
+            im_mat_inds = cellfun(@(input) (isnumeric(input) || islogical(input)) ...
+                && ndims(input) >= 2 ...
+                && ndims(input) <= 4, varargin);
+            im_mat_inds = find(im_mat_inds);
+            if ~isempty(first_char_arg)
+                im_mat_inds(im_mat_inds > first_char_arg) = [];
+            end
+            sparse_inds = cellfun(@issparse, varargin);
+            varargin(sparse_inds) = cfun(@full, varargin(sparse_inds));
+
+            varargin(im_mat_inds) = cfun(@(im) img(im), varargin(im_mat_inds));
             
             % grab all inputs that are img objects
             img_inds = cellfun(@(x) isa(x, 'img'), varargin);
