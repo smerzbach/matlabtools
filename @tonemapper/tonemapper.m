@@ -112,6 +112,8 @@ classdef tonemapper < handle
             
             if ~isempty(obj.selected_channels)
                 im = im(:, :, obj.selected_channels);
+                % apply channels selection to a potentially provided RGB
+                % conversion matrix
                 if ~isempty(varargin)
                     for ii = 1 : 2 : numel(varargin)
                         if ischar(varargin{ii}) && strcmpi(varargin{ii}, 'rgb_mat') && ~isempty(varargin{ii + 1})
@@ -164,14 +166,20 @@ classdef tonemapper < handle
             obj.callback();
         end
         
+        function set_image(obj, im)
+            if ~isa(im, 'img')
+                im = img(im);
+            end
+            
+            obj.image = im.copy();
+        end
+        
         function callback_image_changed(obj, im)
             % update UI
-            obj.image = im.copy();
-            obj.image.remove_all_viewers();
             
-            if ~isa(obj.image, 'img')
-                obj.image = img(obj.image);
-            end
+            obj.set_image(im);
+            
+            obj.image.remove_all_viewers();
             
             % ensure channel selection agrees with the channels of the new
             % image
@@ -525,7 +533,7 @@ classdef tonemapper < handle
         
         function populate_channel_list(obj)
             % get channel names of currently assigned image
-            if ~isempty(obj.image)
+            if ~isempty(obj.image) && isfield(obj.ui, 'lb_channels')
                 chan_names = obj.image.channel_names;
                 empty = cellfun(@isempty, chan_names);
                 ch_inds = 1 : obj.image.nc;
@@ -547,11 +555,13 @@ classdef tonemapper < handle
         
         function update_hist_widget(obj)
             % update hist_widget
-            range = 1 ./ obj.scale;
-            lower = obj.offset;
-            upper = lower + range;
-            obj.hist_widget.setLower(lower);
-            obj.hist_widget.setUpper(upper);
+            if ~isempty(obj.hist_widget)
+                range = 1 ./ obj.scale;
+                lower = obj.offset;
+                upper = lower + range;
+                obj.hist_widget.setLower(lower);
+                obj.hist_widget.setUpper(upper);
+            end
         end
         
         function callback_ui(obj, src, evnt) %#ok<INUSD>
