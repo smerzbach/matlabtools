@@ -29,7 +29,7 @@
 % sigma and an additional slope parameter gamma as follows:
 %
 % k = (1 - (exp(-x^2 / sigma^2) * exp(-y^2 / sigma^2))) ^ gamma
-function imfiltered = imhighpass(im, varargin)
+function [imfiltered, kernel] = imhighpass(im, varargin)
     [varargin, sigma] = arg(varargin, 'sigma', [0.001, 0.001], false);
     if ~isempty(sigma) && numel(sigma) == 1
         sigma = repmat(sigma, 1, 2);
@@ -61,6 +61,8 @@ function imfiltered = imhighpass(im, varargin)
     tmp = cat2(3, cfun(@(map) real(ifft2(kernel .* fft2(map))), ...
         mat2cell2(im.cdata, [], [], 1)));
     imfiltered.assign(tmp);
+    
+    kernel = fftshift(kernel);
     
     if ~was_img
         imfiltered = imfiltered.cdata;
