@@ -318,7 +318,7 @@ classdef iv < handle
         function ui_layout(obj)
             obj.ui.l0 = uiextras.HBoxFlex('Parent', obj.parent_handle, 'Spacing', 5);
             obj.ui.l1_left = uiextras.VBoxFlex('Parent', obj.ui.l0, 'Spacing', 5);
-            obj.ui.l1_right = uiextras.VBox('Parent', obj.ui.l0);
+            obj.ui.l1_right = uiextras.VBoxFlex('Parent', obj.ui.l0);
             % containers for tonemapping widgets (including hist_widget)
             obj.ui.l2_tm_main = uiextras.BoxPanel('Parent', obj.ui.l1_left, 'FontSize', 7);
             obj.ui.l2_tm_channels = uiextras.BoxPanel('Parent', obj.ui.l1_left, 'FontSize', 7);
