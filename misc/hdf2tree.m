@@ -40,7 +40,7 @@ function tree = hdf2tree(input, excludes)
         % filename given as input -> extract meta data using hdf5info
         meta = hdf5info(input);
         node = meta.GroupHierarchy;
-        tree = hdftree(node, excludes);
+        tree = hdf2tree(node, excludes);
         return;
     else
         node = input;
@@ -60,12 +60,12 @@ function tree = hdf2tree(input, excludes)
     for di = 1 : numel(node.Datasets)
         tree = [tree, newline, 'D ', node.Datasets(di).Name, ' [', node.Datasets(di).Datatype.Class, ']']; %#ok<AGROW>
         if ~isempty(node.Datasets(di).Dims)
-            tree = [tree, ' (', sprintf('%d, ', node.Datasets(di).Dims), ')']; %#ok<AGROW>
+            tree = [tree, ' (', sprintf('<strong>%d</strong>, ', node.Datasets(di).Dims), ')']; %#ok<AGROW>
         end
     end
     
     % recurse into child nodes
     for ci = 1 : numel(node.Groups)
-        tree = [tree, newline, hdftree(node.Groups(ci), excludes)]; %#ok<AGROW>
+        tree = [tree, newline, hdf2tree(node.Groups(ci), excludes)]; %#ok<AGROW>
     end
 end
