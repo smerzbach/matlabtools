@@ -79,6 +79,11 @@
 function varargout = strparse(input, pattern, numeric) %#ok<INUSD>
     numeric = default('numeric', false);
     
+    was_cell = iscell(input);
+    if ~was_cell
+        input = {input};
+    end
+    
     tokens = regexp(input, pattern, 'tokens');
     matching = ~cellfun(@isempty, tokens);
     
@@ -105,6 +110,11 @@ function varargout = strparse(input, pattern, numeric) %#ok<INUSD>
             else
                 varargout{ii}(~isnan(tmp)) = num2cell(tmp(~isnan(tmp)));
             end
+        end
+    elseif ~was_cell
+        % if input was a single string, we don't need to return cell arrays
+        for ii = 1 : nout
+            varargout{ii} = varargout{ii}{1};
         end
     end
 end
