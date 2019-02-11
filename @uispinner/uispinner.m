@@ -74,14 +74,14 @@ classdef uispinner < uipair
                 @uicontrol, {'Style', 'edit', 'String', 0}, ...
                 @uipanel, {'Title', ''});
             
-            [varargin, obj.step_size] = arg(varargin, 'step_size', obj.default_step_size);
-            [varargin, obj.value] = arg(varargin, 'value', obj.default_value);
-            [varargin, obj.minimum] = arg(varargin, 'minimum', obj.default_minimum);
-            [varargin, obj.maximum] = arg(varargin, 'maximum', obj.default_maximum);
-            [varargin, obj.editable] = arg(varargin, 'editable', obj.default_editable);
-            [varargin, obj.callback] = arg(varargin, 'callback', @obj.default_callback);
-            [varargin, obj.ui_edit_weight] = arg(varargin, 'ui_edit_weight', obj.default_ui_edit_weight);
-            [varargin, obj.ui_button_weight] = arg(varargin, 'ui_button_weight', obj.default_ui_button_weight); %#ok<ASGLU>
+            [varargin, obj.step_size] = arg(varargin, 'step_size', obj.default_step_size, false);
+            [varargin, obj.value] = arg(varargin, 'value', obj.default_value, false);
+            [varargin, obj.minimum] = arg(varargin, 'minimum', obj.default_minimum, false);
+            [varargin, obj.maximum] = arg(varargin, 'maximum', obj.default_maximum, false);
+            [varargin, obj.editable] = arg(varargin, 'editable', obj.default_editable, false);
+            [varargin, obj.callback] = arg(varargin, 'callback', @obj.default_callback, false);
+            [varargin, obj.ui_edit_weight] = arg(varargin, 'ui_edit_weight', obj.default_ui_edit_weight, false);
+            [varargin, obj.ui_button_weight] = arg(varargin, 'ui_button_weight', obj.default_ui_button_weight, false); %#ok<ASGLU>
             
             obj.grid.ColumnSizes = [obj.ui_edit_weight, obj.ui_button_weight];
             obj.display_value();
