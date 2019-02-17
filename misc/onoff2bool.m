@@ -26,7 +26,7 @@
 % Silly helper for Matlab handle classes, converting 'onf' / 'off' to
 % boolean values.
 function bool = onoff2bool(onoff)
-    if onoff
+    if strcmpi(onoff, 'on')
         bool = true;
     else
         bool = false;
