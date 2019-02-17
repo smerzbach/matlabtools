@@ -23,9 +23,9 @@
 % *
 % *************************************************************************
 % 
-% Given a string representation of a 2D array, this functio attempts to
-% parse and return a numeric array. This function can be seen as acting
-% inversely to what mat2str() does.
+% Given a string representation of a 2D array, this function attempts to
+% parse and return a numeric array. The behavior can be seen as inverse to
+% what mat2str() does.
 %
 % Test this with e.g. 
 % errs = zeros(10000, 1);
@@ -52,7 +52,7 @@ function [mat, e] = str2mat2(str)
         str = mat2str(str);
     end
 
-    str = strrep(str, sprintf('\n'), ';');
+    str = strrep(str, sprintf('\n'), ';'); %#ok<SPRINTFN>
     str = strrep(str, '[', '');
     str = strrep(str, ']', '');
     str = strrep(str, ',', ' ');

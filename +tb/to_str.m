@@ -32,8 +32,10 @@ function str = to_str(input, concatenate_strings)
     end
     if ischar(input)
         str = input;
-    elseif isnumeric(input)
+    elseif isnumeric(input) && numel(input) == 1
         str = num2str(input);
+    elseif isnumeric(input)
+        str = mat2str(input);
     elseif iscell(input)
         str = cellfun(@(x) strcat(tb.to_str(x), " "), input, 'UniformOutput', false);
         str = strcat(str{:});
