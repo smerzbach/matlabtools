@@ -41,6 +41,7 @@ classdef exposer < handle
         controls;
         callbacks;
         
+        scrollable = true;
         nr;
         nc;
         button_size = [-1, 20]
@@ -54,7 +55,7 @@ classdef exposer < handle
     
     properties(Constant)
         supported_types = {...
-            'logical', ...
+            'logical', 'onoff', ...
             'int8', 'uint8', ...
             'int16', 'uint16', ...
             'int32', 'uint32', ...
@@ -66,11 +67,15 @@ classdef exposer < handle
     end
     
     methods
-        function obj = exposer(object, props, varargin)
+        function obj = exposer(object, varargin)
+            [varargin, props] = arg(varargin, 'props', [], false);
+            [varargin, show_hidden] = arg(varargin, 'show_hidden', false, false);
+            [varargin, do_sort] = arg(varargin, 'sort', true, false);
             [varargin, obj.container] = arg(varargin, 'container', [], false);
-            [varargin, obj.nr] = arg(varargin, 'nr', size(props, 1), false);
-            [varargin, obj.nc] = arg(varargin, 'nc', 1, false);
             [varargin, obj.orientation] = arg(varargin, 'orientation', obj.orientation, false);
+            [varargin, obj.scrollable] = arg(varargin, 'scrollable', obj.scrollable, false);
+            [varargin, obj.nr] = arg(varargin, 'nr', [], false);
+            [varargin, obj.nc] = arg(varargin, 'nc', [], false);
             [varargin, obj.flex] = arg(varargin, 'flex', obj.flex, false);
             [varargin, obj.button_size] = arg(varargin, 'button_size', obj.button_size, false);
             arg(varargin);
@@ -80,108 +85,195 @@ classdef exposer < handle
             cls = class(obj.object);
             obj.meta = eval(['?', cls]);
             
-            % parse mandatory fields from input
-            n = size(props, 1);
-            assert(size(props, 2) >= 4);
-            obj.props = props(:, 1);
-            obj.controls = props(:, 2);
-            obj.ranges = props(:, 3 : 4);
-            
-            % parse optional fields
-            obj.callbacks = cell(n, 1);
-            obj.types = cell(n, 1);
-            obj.dimensions = cell(n, 1);
-            if size(props, 2) >= 5
-                obj.callbacks = props(:, 5);
-            end
-            if size(props, 2) >= 6
-                obj.types = props(:, 6);
-            end
-            if size(props, 2) >= 7
-                obj.dimensions = props(:, 7);
-            end
-            
-            all_props = string({obj.meta.PropertyList.Name})';
-            for ii = 1 : n
-                p = obj.props{ii};
-                ind = find(all_props == p);
-                if isempty(ind)
-                    error('exposer:invalid_prop', ...
-                        'unknown property %s in class %s', p, cls);
-                end
+            if isempty(props)
+                % no props array specified -> automatically extract all
+                % possible properties from the provided object
+                obj.props = cell(0, 1);
+                obj.types = cell(0, 1);
+                obj.dimensions = cell(0, 1);
+                obj.callbacks = cell(0, 1);
                 
-                % if property types are specified via the @ syntax in the
-                % class, we rely on this 
-                type = obj.meta.PropertyList(ind).Type.Name;
-                val = obj.object.(p);
-                if strcmpi(type, 'any')
-                    % try to auto detect the property type from its current
-                    % value if it hasn't been specified in the class
-                    type = class(val);
+                % try to automatically get all useable properties of object
+                for ii = 1 : numel(obj.meta.PropertyList)
+                    prop = obj.meta.PropertyList(ii).Name;
+                    type = obj.meta.PropertyList(ii).Type.Name;
+                    
+                    if any(strcmp(obj.meta.PropertyList(ii).GetAccess, {'protected', 'private'})) ...
+                            || any(strcmp(obj.meta.PropertyList(ii).SetAccess, {'protected', 'private'})) ...
+                            || iscell(obj.meta.PropertyList(ii).SetAccess)
+                        % skip non-public properties
+                        continue;
+                    end
+                    if ~show_hidden && obj.meta.PropertyList(ii).Hidden
+                        % skip hidden properties
+                        continue;
+                    end
+                    if regexp(prop, '_I$')
+                        % skip duplicate properties in Matlab graphics objects
+                        continue;
+                    end
+                    
+                    % try to parse potential type specifiers
+                    tokens = regexpi(type, '(.+) (scalar|vector|matrix)$', 'tokens');
+                    if ~isempty(tokens)
+                        % type specifier with dimensions available
+                        type = tokens{1}{1};
+                        dimension = tokens{1}{2};
+                    else
+                        % no type specifiers -> extract the property value
+                        val = obj.object.(prop);
+                        % use current value to determine dimensionality
+                        dimension = exposer.get_dimension(val);
+                    end
+                    
+                    if regexp(type, 'on_off')
+                        % "boolean" values with 'on' / 'off' need special
+                        % treatment (used throughout Matlab's handle
+                        % classes)
+                        type = 'onoff';
+                    end
+                    if ~ismember(type, obj.supported_types) ...
+                            || ~ismember(dimension, obj.supported_dimensions)
+                        continue;
+                    end
+                    
+                    obj.props{end + 1, 1} = prop;
+                    obj.types{end + 1, 1} = type;
+                    obj.dimensions{end + 1, 1} = dimension;
+                    
+                    % default callback directly sets the property
+                    obj.callbacks{end + 1, 1} = @(value, prop) setfield(obj.object, prop, value);
+                end
+                n = size(obj.props, 1);
+                
+                % automatically set control types
+                obj.controls = cell(n, 1);
+                obj.ranges = cell(n, 2);
+                logicals = cellfun(@(t) any(strcmp(t, {'logical', 'onoff'})), obj.types);
+                obj.controls(logicals) = repmat({'checkbox'}, nnz(logicals), 1);
+                obj.controls(~logicals) = repmat({'edit'}, nnz(~logicals), 1);
+                
+                % automatically set value ranges
+                obj.ranges(logicals, :) = repmat({0, 1}, nnz(logicals), 1);
+                obj.ranges(~logicals, :) = repmat({-inf, inf}, nnz(~logicals), 1);
+            else
+                % parse mandatory fields from input
+                n = size(props, 1);
+                assert(size(props, 2) >= 4);
+                obj.props = props(:, 1);
+                obj.controls = props(:, 2);
+                obj.ranges = props(:, 3 : 4);
+
+                % parse optional fields
+                obj.callbacks = cell(n, 1);
+                obj.types = cell(n, 1);
+                obj.dimensions = cell(n, 1);
+                if size(props, 2) >= 5
+                    % callbacks specified
+                    obj.callbacks = props(:, 5);
+                end
+                if size(props, 2) >= 6
+                    % types specified
+                    obj.types = props(:, 6);
+                end
+                if size(props, 2) >= 7
+                    % dimensions specified
+                    obj.dimensions = props(:, 7);
                 end
 
-                if isempty(regexpi(type, ' scalar$| vector$| matrix$'))
-                    if ndims(val) == 2 && all(size(val) == 1) %#ok<ISMAT>
-                        type = [type, ' scalar']; %#ok<AGROW>
-                    elseif ndims(val) == 2 && any(size(val) == 1) && any(size(val) ~= 1) %#ok<ISMAT>
-                        type = [type, ' vector']; %#ok<AGROW>
-                    elseif ndims(val) == 2 && all(size(val) ~= 1) %#ok<ISMAT>
-                        type = [type, ' matrix']; %#ok<AGROW>
+                all_props = string({obj.meta.PropertyList.Name})';
+                for ii = 1 : n
+                    prop = obj.props{ii};
+                    ind = find(all_props == prop);
+                    if isempty(ind)
+                        error('exposer:invalid_prop', ...
+                            'unknown property %s in class %s', prop, cls);
+                    end
+
+                    % if property types are specified via the @ syntax in the
+                    % class, we rely on this 
+                    type = obj.meta.PropertyList(ind).Type.Name;
+
+                    % try to parse potential type specifiers
+                    tokens = regexpi(type, '(.+) (scalar|vector|matrix)$', 'tokens');
+                    if ~isempty(tokens)
+                        % type specifier with dimensions available
+                        type = tokens{1}{1};
+                        dim = tokens{1}{2};
                     else
-                        type = [type, ' array']; %#ok<AGROW>
+                        % no type specifiers -> extract the property value
+                        val = obj.object.(prop);
+                        
+                        % try to auto detect the property type from its
+                        % current value
+                        type = class(val);
+                        % also use current value to determine dimensionality
+                        dim = exposer.get_dimension(val);
+                    end
+                    
+                    if regexp(type, 'on_off')
+                        % "boolean" values with 'on' / 'off' need special
+                        % treatment (used throughout Matlab's handle
+                        % classes)
+                        type = 'onoff';
+                    end
+                    
+                    if isempty(obj.types{ii})
+                        obj.types{ii} = type;
+                    end
+                    if isempty(obj.dimensions{ii})
+                        obj.dimensions{ii} = dim;
+                    end
+                    
+                    % set default callback
+                    if isempty(obj.callbacks{ii})
+                        obj.callbacks{ii} = @(value, prop) setfield(obj.object, prop, value);
                     end
                 end
 
-                % now strip off the dimension specifiers and store them
-                % separately in the dimensions property
-                tokens = regexpi(type, '(.+) (scalar|vector|matrix)$', 'tokens');
-                if ~isempty(tokens)
-                    type = tokens{1}{1};
-                    dim = tokens{1}{2};
-                else
-                    error('exposer:unsupported_type_spec', ...
-                        'unsupported type specifier: %s', type);
+                % check if all types are supported
+                unsupported_types = setdiff(obj.types, obj.supported_types);
+                if ~isempty(unsupported_types)
+                    error('exposer:unsupported_type', ...
+                        'the following types are not supported: %s', ...
+                        tb.to_str(unsupported_types));
                 end
-                
-                if isempty(obj.types{ii})
-                    obj.types{ii} = type;
+
+                % check if all dimensions are supported
+                unsupported_dims = setdiff(obj.dimensions, obj.supported_dimensions);
+                if ~isempty(unsupported_dims)
+                    error('exposer:unsupported_dim', ...
+                        'the following dimensions are not supported: %s', ...
+                        tb.to_str(unsupported_dims));
                 end
-                if isempty(obj.dimensions{ii})
-                    obj.dimensions{ii} = dim;
-                end
-                
-                % set default callback
-                if isempty(obj.callbacks{ii})
-                    obj.callbacks{ii} = @(value, prop) setfield(obj.object, prop, value);
+
+                % check if all dimensions are supported
+                unsupported_controls = setdiff(obj.controls, obj.supported_controls);
+                if ~isempty(unsupported_controls)
+                    error('exposer:unsupported_control', ...
+                        'the following controls are not supported: %s', ...
+                        tb.to_str(unsupported_controls));
                 end
             end
             
-            % check if all types are supported
-            unsupported_types = setdiff(obj.types, obj.supported_types);
-            if ~isempty(unsupported_types)
-                error('exposer:unsupported_type', ...
-                    'the following types are not supported: %s', ...
-                    tb.to_str(unsupported_types));
+            if do_sort
+                % sort properties alphabetically
+                [obj.props, perm] = sort(obj.props);
+                obj.types = obj.types(perm);
+                obj.dimensions = obj.dimensions(perm);
+                obj.ranges = obj.ranges(perm, :);
+                obj.controls = obj.controls(perm);
+                obj.callbacks = obj.callbacks(perm);
             end
             
-            % check if all dimensions are supported
-            unsupported_dims = setdiff(obj.dimensions, obj.supported_dimensions);
-            if ~isempty(unsupported_dims)
-                error('exposer:unsupported_dim', ...
-                    'the following dimensions are not supported: %s', ...
-                    tb.to_str(unsupported_dims));
-            end
-            
-            % check if all dimensions are supported
-            unsupported_controls = setdiff(obj.controls, obj.supported_controls);
-            if ~isempty(unsupported_controls)
-                error('exposer:unsupported_control', ...
-                    'the following controls are not supported: %s', ...
-                    tb.to_str(unsupported_controls));
-            end
-            
+            % automatically find good arrangement of the controls inside
+            % the container
             if isempty(obj.nr)
-                obj.nr = floor(sqrt(numel(obj.props)));
+                if ~isempty(obj.nc)
+                    obj.nr = ceil(numel(obj.props) / obj.nc);
+                else
+                    obj.nr = floor(sqrt(numel(obj.props)));
+                end
             end
             if isempty(obj.nc)
                 obj.nc = ceil(numel(obj.props) / obj.nr);
@@ -204,11 +296,21 @@ classdef exposer < handle
             end
             % second level are VBoxes that store the rows
             obj.ui.l1_bbs = cell(1, obj.nc);
+            obj.ui.l1_scroll = cell(1, obj.nc);
             for ci = 1 : obj.nc
-                if obj.flex
-                    obj.ui.l1_bbs{ci} = uiextras.VBoxFlex('Parent', obj.ui.l0_grid);
+                if obj.scrollable
+                    obj.ui.l1_scroll{ci} = uix.ScrollingPanel('Parent', obj.ui.l0_grid);
+                    if obj.flex
+                        obj.ui.l1_bbs{ci} = uiextras.VBoxFlex('Parent', obj.ui.l1_scroll{ci});
+                    else
+                        obj.ui.l1_bbs{ci} = uiextras.VBox('Parent', obj.ui.l1_scroll{ci});
+                    end
                 else
-                    obj.ui.l1_bbs{ci} = uiextras.VBox('Parent', obj.ui.l0_grid);
+                    if obj.flex
+                        obj.ui.l1_bbs{ci} = uiextras.VBoxFlex('Parent', obj.ui.l0_grid);
+                    else
+                        obj.ui.l1_bbs{ci} = uiextras.VBox('Parent', obj.ui.l0_grid);
+                    end
                 end
             end
             
@@ -217,6 +319,9 @@ classdef exposer < handle
             for ii = 1 : numel(obj.props)
                 [~, ci] = ind2sub([obj.nr, obj.nc], ii);
                 value = obj.object.(obj.props{ii});
+                if strcmpi(obj.types{ii}, 'onoff')
+                    value = onoff2bool(value);
+                end
                 if strcmpi(obj.controls{ii}, 'checkbox')
                     control = @uicontrol;
                     params = {'Style', 'checkbox', ...
@@ -264,6 +369,17 @@ classdef exposer < handle
             for ci = 1 : obj.nc
                 num_children = numel(obj.ui.l1_bbs{ci}.Children);
                 obj.ui.l1_bbs{ci}.Heights = repmat(obj.button_size(2), num_children, 1);
+                if ~isempty(obj.ui.l1_scroll{ci})
+                    if obj.button_size(2) > 0
+                        obj.ui.l1_scroll{ci}.Heights = num_children...
+                            * (obj.button_size(2) + obj.ui.l1_bbs{ci}.Spacing)...
+                            + 2 * obj.ui.l1_bbs{ci}.Padding;
+                    else
+                        error('exposer:invalid_button_size', ...
+                            ['please specify an absolute button height if you want', ...
+                            'a scrollable container']);
+                    end
+                end
             end
         end
         
@@ -289,6 +405,9 @@ classdef exposer < handle
                 
                 % ensure type matches
                 value = cast(value, obj.types{ii});
+            elseif ismember(obj.types{ii}, {'onoff'})
+                % 'on' / 'off' valued property
+                value = bool2onoff(value);
             elseif ismember(obj.types{ii}, {'char', 'string'})
                 % char / string
             else
@@ -303,7 +422,9 @@ classdef exposer < handle
             % read back value from object to update the UI in case the
             % value differs after setting
             value_new = obj.object.(obj.props{ii});
-            
+            if strcmp(obj.types{ii}, 'onoff')
+                value_new = onoff2bool(value_new);
+            end
             if any(strcmpi(obj.controls{ii}, {'checkbox', 'slider'}))
                 obj.handles{ii}.h2.Value = value_new;
             elseif strcmpi(obj.controls{ii}, 'edit')
@@ -313,6 +434,22 @@ classdef exposer < handle
             else
                 error('exposer:unsupported_uicontrol', ...
                     'unsupported uicontrol: %s', obj.controls{ii});
+            end
+        end
+    end
+    
+    methods(Static)
+        function dim = get_dimension(val)
+            if ischar(val) && any(strcmpi(val, {'on', 'off'}))
+                dim = 'scalar';
+            elseif ndims(val) == 2 && all(size(val) == 1) %#ok<ISMAT>
+                dim = 'scalar';
+            elseif ndims(val) == 2 && any(size(val) == 1) && any(size(val) ~= 1) %#ok<ISMAT>
+                dim = 'vector';
+            elseif ndims(val) == 2 && all(size(val) ~= 1) %#ok<ISMAT>
+                dim = 'matrix';
+            else
+                dim = 'array';
             end
         end
     end
