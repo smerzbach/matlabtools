@@ -27,8 +27,8 @@
 % boolean values.
 function bool = onoff2bool(onoff)
     if onoff
-        bool = 'true';
+        bool = true;
     else
-        bool = 'false';
+        bool = false;
     end
 end
