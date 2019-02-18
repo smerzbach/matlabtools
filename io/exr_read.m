@@ -42,9 +42,14 @@
 %   half precision floats), or an img object if as_img is true
 % - channel_names is a cell array of strings holding the names of each
 %   channel
-function [im, channel_names] = exr_read(fname, requested_pixel_type, as_img, imroi, strides, varargin) %#ok<INUSL>
+function [im, channel_names] = exr_read(fname, varargin)
     % avoid expensive checks in mex_auto when it's not necessary
     [varargin, dontbuild] = arg(varargin, 'dontbuild', false, false);
+    [varargin, pixel_type] = arg(varargin, 'pixel_type', 'single', false);
+    [varargin, as_img] = arg(varargin, 'as_img', false, false);
+    [varargin, imroi] = arg(varargin, 'imroi', [0, 0, 0, 0], false);
+    [varargin, strides] = arg(varargin, 'imroi', [1, 1], false);
+    [varargin, channel_mask] = arg(varargin, 'channel_mask', [], false);
     arg(varargin);
     
     % get folder containing this script
@@ -58,59 +63,51 @@ function [im, channel_names] = exr_read(fname, requested_pixel_type, as_img, imr
         'headers', {'tinyexr.h'}, ...
         ['-I', header_dir]);
     
-    requested_pixel_type = default('requested_pixel_type', 'single');
-    as_img = default('as_img', false);
-    imroi = default('imroi', [-1, -1, -1, -1, -1, -1]);
-    strides = default('strides', [1, 1, 1]);
+    assert(numel(imroi) == 4, 'exr_read:invalid_roi', ...
+        'roi must be specified as [x_min, y_min, x_max, y_max].');
+    assert(numel(strides) == 2, 'exr_read:invalid_strides', ...
+        'strides must be specified as [stride_x, stride_y, stride_channels].');
     
-    if numel(imroi) ~= 6 || any(imroi < 1)
+    if any(imroi < 1)
         meta = exr_query(fname);
-        for ii = numel(imroi) + 1 : 6
-            if ii == 1
-                imroi(ii) = 1;
-            elseif ii == 2
-                imroi(ii) = 1;
-            elseif ii == 3
-                imroi(ii) = meta.width;
-            elseif ii == 4
-                imroi(ii) = meta.height;
-            elseif ii == 5
-                imroi(ii) = 1;
-            elseif ii == 6
-                imroi(ii) = meta.num_channels;
-            else
-                error('exr_read:invalid_roi', ...
-                    'roi must be specified as [x_min, y_min, x_max, y_max, ch_min, ch_max].');
-            end
+        if imroi(1) < 1
+            imroi(1) = 1;
         end
+        if imroi(2) < 1
+            imroi(2) = 1;
+        end
+        if imroi(3) < 1
+            imroi(3) = meta.width + imroi(3);
+        end
+        if imroi(4) < 1
+            imroi(4) = meta.height + imroi(4);
+        end
+    end
+    
+    if isempty(channel_mask)
+        if ~exist('meta', 'var')
+            meta = exr_query(fname);
+        end
+        channel_mask = 1 : meta.num_channels;
     end
     
     % C++ 0-based indexing
     imroi = imroi - 1;
+    channel_mask = channel_mask - 1;
     
-    if numel(strides) ~= 3 || any(strides < 1)
-        for ii = numel(strides) + 1 : 3
-            strides(ii) = 1;
-            if ii == 6
-                error('exr_read:invalid_strides', ...
-                    'strides must be specified as [stride_x, stride_y, stride_channels].');
-            end
-        end
-    end
-    
-    switch lower(requested_pixel_type)
+    switch lower(pixel_type)
         case 'uint'
-            requested_pixel_type = 0;
+            pixel_type = 0;
         case 'half'
-            requested_pixel_type = 1;
+            pixel_type = 1;
         case {'single', 'float'}
-            requested_pixel_type = 2;
+            pixel_type = 2;
         otherwise
             error('exr_read:invalid_requested_pixel_type', ...
                 'requested_pixel_type must be one of ''uint'', ''half'' or ''single''.');
     end
     
-    [im, channel_names] = exr_read_mex(fname, requested_pixel_type, imroi, strides);
+    [im, channel_names] = exr_read_mex(fname, pixel_type, imroi, strides, channel_mask);
     
     if as_img
         im = img(im, 'wls', channel_names);

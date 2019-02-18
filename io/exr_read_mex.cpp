@@ -39,7 +39,7 @@
  *   used for half precision floats)
  * - channel_names is a cell array of strings holding the names of each
  *   channel
- */ 
+ */
 
 #include <cstdint>
 #include <string>
@@ -53,8 +53,8 @@
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     // check inputs
-    if(1 > nrhs || nrhs > 4) {
-        mexErrMsgTxt("Usage: [im, channels] = exr_read(path_to_exr_file[, requested_pixel_type[, roi[, strides]]])");
+    if(1 > nrhs || nrhs > 5) {
+        mexErrMsgTxt("Usage: [im, channels] = exr_read(path_to_exr_file[, requested_pixel_type[, roi[, strides[, channel_mask]]]])");
     }
     
     // read inputs
@@ -75,17 +75,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         EXRHeader exr_header;
         InitEXRHeader(&exr_header);
         InitEXRImage(&exr_image);
-
+        
         // read EXR format from file & check for compatibility
         int ret = ParseEXRVersionFromFile(&exr_version, filename);
         if (ret != TINYEXR_SUCCESS) {
-            mexErrMsgTxt((std::string("Error parsing EXR version from file ") + 
+            mexErrMsgTxt((std::string("Error parsing EXR version from file ") +
                     std::string(filename) + std::string(". Not an OpenEXR file?")).c_str());
         }
         if (exr_version.multipart || exr_version.non_image) {
             mexErrMsgTxt("Loading multipart or DeepImage is not supported yet.\n");
         }
-
+        
         // read meta data from EXR file
         const char** err;
         ret = ParseEXRHeaderFromFile(&exr_header, &exr_version, filename, err);
@@ -94,54 +94,58 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         }
         
         bool roi_specified = false;
-		int dw[4];
-		std::copy(&(exr_header.data_window[0]), &(exr_header.data_window[4]), &(dw[0]));
-        int roi_default[6] = {dw[0], dw[1], dw[2], dw[3], 0, exr_header.num_channels - 1};;
-		int roi[6];
-		std::copy(&(roi_default[0]), &(roi_default[6]), &(roi[0]));
+        int dw[4];
+        std::copy(&(exr_header.data_window[0]), &(exr_header.data_window[4]), &(dw[0]));
+        int roi_default[4] = {dw[0], dw[1], dw[2], dw[3]};;
+        int roi[4];
+        std::copy(&(roi_default[0]), &(roi_default[4]), &(roi[0]));
         if (nrhs > 2) {
-            if (mxGetNumberOfElements(prhs[2]) == 6) {
+            if (mxGetNumberOfElements(prhs[2]) == 4) {
                 double* pRoi = mxGetPr(prhs[2]);
                 // [x_min, y_min, x_max, y_max]
-                std::copy(&pRoi[0], &pRoi[6], &roi[0]);
-                if (roi[0] < 0 || roi[1] < 0 || roi[2] < 0 || roi[3] < 0 || roi[4] < 0 || roi[5] < 0) {
+                std::copy(&pRoi[0], &pRoi[4], &roi[0]);
+                if (roi[0] < 0 || roi[1] < 0 || roi[2] < 0 || roi[3] < 0) {
                     roi_specified = false;
-                    std::copy(&(roi_default[0]), &(roi_default[6]), &(roi[0]));
+                    std::copy(&(roi_default[0]), &(roi_default[4]), &(roi[0]));
                 } else {
                     roi_specified = true;
                 }
             } else {
-                mexErrMsgTxt("region of interest must be specified as [x_min, y_min, x_max, y_max, ch_min, ch_max]\n");
+                mexErrMsgTxt("region of interest must be specified as [x_min, y_min, x_max, y_max]\n");
             }
         }
         
         int stride_x = 1;
         int stride_y = 1;
-        int stride_channels = 1;
         if (nrhs > 3) {
-            if (mxGetNumberOfElements(prhs[3]) == 3) {
+            if (mxGetNumberOfElements(prhs[3]) == 2) {
                 double* pStrides = mxGetPr(prhs[3]);
-                // [stride_x, stride_y, stride_channels]
+                // [stride_x, stride_y]
                 stride_x = pStrides[0];
                 stride_y = pStrides[1];
-                stride_channels = pStrides[2];
             } else {
-                mexErrMsgTxt("strides must be specified as [stride_x, stride_y, stride_channels]\n");
+                mexErrMsgTxt("strides must be specified as [stride_x, stride_y]\n");
             }
         }
         
         if (roi_specified && (roi[0] < exr_header.data_window[0] ||
                 roi[1] < exr_header.data_window[1] ||
                 roi[2] > exr_header.data_window[2] ||
-                roi[3] > exr_header.data_window[3]) ||
-                roi[4] < 0 || roi[5] > exr_header.num_channels - 1) {
+                roi[3] > exr_header.data_window[3])) {
             char buffer[1000];
-            sprintf(buffer, "region of interest out of image bounds: given roi: [%d, %d, %d, %d, %d, %d], img: [%d x %d x %d].\n",
-                    roi[0], roi[1], roi[2], roi[3], roi[4], roi[5], 
-                    exr_header.data_window[2] - exr_header.data_window[0] + 1, 
-					exr_header.data_window[3] - exr_header.data_window[1] + 1,
+            sprintf(buffer, "region of interest out of image bounds: given roi: [%d, %d, %d, %d], img: [%d x %d x %d].\n",
+                    roi[0], roi[1], roi[2], roi[3],
+                    exr_header.data_window[2] - exr_header.data_window[0] + 1,
+                    exr_header.data_window[3] - exr_header.data_window[1] + 1,
                     exr_header.num_channels);
             mexErrMsgTxt(buffer);
+        }
+        
+        size_t num_channels_mask = mxGetNumberOfElements(prhs[4]);
+        std::vector<double> channelMask(num_channels_mask);
+        if (nrhs > 4) {
+            double* pChannelMask = mxGetPr(prhs[4]);
+            std::copy(&pChannelMask[0], &pChannelMask[num_channels_mask], &channelMask[0]);
         }
         
         // set requested pixel type (uint, half or float)
@@ -153,15 +157,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         
         size_t height = exr_header.data_window[3] - exr_header.data_window[1] + 1;
         size_t width = exr_header.data_window[2] - exr_header.data_window[0] + 1;
-        size_t num_channels = exr_header.num_channels;
-        
         size_t height_out = roi[3] - roi[1] + 1;
         size_t width_out  = roi[2] - roi[0] + 1;
-        size_t num_channels_out = roi[5] - roi[4] + 1;
-        
         height_out = ceil((float)height_out / stride_y);
         width_out = ceil((float)width_out / stride_x);
-        num_channels_out = ceil((float)num_channels_out / stride_channels);
+        size_t num_channels_out = channelMask.size();
         
         // read pixel values from EXR file
         ret = LoadEXRImageFromFile(&exr_image, &exr_header, filename, err);
@@ -177,75 +177,72 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             plhs[0] = mxCreateNumericArray(3, dims, mxSINGLE_CLASS, mxREAL);
             float* outMatrix = (float*) mxGetData(plhs[0]);
             float** images = (float**) exr_image.images;
-            size_t ci_out = 0;
-            for (size_t ci = roi[4]; ci <= roi[5]; ci += stride_channels) {
+            for (size_t ci_out = 0; ci_out < channelMask.size(); ci_out++) {
+                size_t ci = channelMask[ci_out];
                 size_t x_out = 0;
                 for (size_t x = roi[0]; x <= roi[2]; x += stride_x) {
                     size_t y_out = 0;
                     for (size_t y = roi[1]; y <= roi[3]; y += stride_y) {
-                        outMatrix[height_out * width_out * ci_out + x_out * height_out + y_out] = 
+                        outMatrix[height_out * width_out * ci_out + x_out * height_out + y_out] =
                                 images[ci][x + y * width];
                         y_out++;
                     }
                     x_out++;
                 }
-                ci_out++;
             }
         } else if (requested_pixel_type == TINYEXR_PIXELTYPE_HALF) {
             // half precision floats are stored as uint16 in matlab
             plhs[0] = mxCreateNumericArray(3, dims, mxUINT16_CLASS, mxREAL);
             unsigned short* outMatrix = (unsigned short*) mxGetData(plhs[0]);
             unsigned short** images = (unsigned short**) exr_image.images;
-            size_t ci_out = 0;
-            for (size_t ci = roi[4]; ci <= roi[5]; ci += stride_channels) {
+            for (size_t ci_out = 0; ci_out < channelMask.size(); ci_out++) {
+                size_t ci = channelMask[ci_out];
                 size_t x_out = 0;
                 for (size_t x = roi[0]; x <= roi[2]; x += stride_x) {
                     size_t y_out = 0;
                     for (size_t y = roi[1]; y <= roi[3]; y += stride_y) {
-                        outMatrix[height_out * width_out * ci_out + x_out * height_out + y_out] = 
+                        outMatrix[height_out * width_out * ci_out + x_out * height_out + y_out] =
                                 images[ci][x + y * width];
                         y_out++;
                     }
                     x_out++;
                 }
-                ci_out++;
             }
         } else {
             plhs[0] = mxCreateNumericArray(3, dims, mxUINT32_CLASS, mxREAL);
             unsigned int* outMatrix = (unsigned int*) mxGetData(plhs[0]);
             unsigned int** images = (unsigned int**) exr_image.images;
-            size_t ci_out = 0;
-            for (size_t ci = roi[4]; ci <= roi[5]; ci += stride_channels) {
+            for (size_t ci_out = 0; ci_out < channelMask.size(); ci_out++) {
+                size_t ci = channelMask[ci_out];
                 size_t x_out = 0;
                 for (size_t x = roi[0]; x <= roi[2]; x += stride_x) {
                     size_t y_out = 0;
                     for (size_t y = roi[1]; y <= roi[3]; y += stride_y) {
-                        outMatrix[height_out * width_out * ci_out + x_out * height_out + y_out] = 
+                        outMatrix[height_out * width_out * ci_out + x_out * height_out + y_out] =
                                 images[ci][x + y * width];
                         y_out++;
                     }
                     x_out++;
                 }
-                ci_out++;
             }
         }
-
+        
         // extract channel names
         if (nlhs > 1) {
             dims[0] = 1;
             dims[1] = num_channels_out;
-
+            
             plhs[1] = mxCreateCellArray(2, dims);
-            size_t ci_out = 0;
-            for (size_t ci = roi[4]; ci <= roi[5]; ci += stride_channels) {
-                mxSetCell(plhs[1], ci_out++, mxDuplicateArray(mxCreateString(exr_header.channels[ci].name)));
+            for (size_t ci_out = 0; ci_out < channelMask.size(); ci_out++) {
+                size_t ci = channelMask[ci_out];
+                mxSetCell(plhs[1], ci_out, mxDuplicateArray(mxCreateString(exr_header.channels[ci].name)));
             }
         }
-
+        
         FreeEXRImage(&exr_image);
         FreeEXRHeader(&exr_header);
     } catch (std::runtime_error err) {
-        mexErrMsgTxt((std::string("error reading EXR file ") + 
+        mexErrMsgTxt((std::string("error reading EXR file ") +
                 std::string(filename) + std::string("\n")).c_str());
     }
 }
