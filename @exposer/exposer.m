@@ -66,7 +66,7 @@ classdef exposer < handle
             'char', 'string', ...
             'numericorstring'};
         supported_dimensions = {'scalar', 'vector', 'matrix'};
-        supported_controls = {'checkbox', 'edit', 'slider', 'spinner'};
+        supported_controls = {'checkbox', 'edit', 'popupmenu', 'slider', 'spinner'};
         type_map = {...
             'matlab.graphics.datatype.ActivePosition', 'char', 'scalar', {'position', 'outerposition'}, 'popupmenu';
             'matlab.graphics.datatype.AlphaDataMapping', 'char', 'scalar', {'none', 'scaled', 'direct'}, 'popupmenu';
@@ -240,7 +240,7 @@ classdef exposer < handle
             else
                 % parse mandatory fields from input
                 n = size(props, 1);
-                assert(size(props, 2) >= 4);
+                assert(size(props, 2) >= 3);
                 obj.props = props(:, 1);
                 obj.controls = props(:, 2);
                 obj.ranges = props(:, 3);
@@ -379,7 +379,10 @@ classdef exposer < handle
                 range = {0, 1};
                 control = 'checkbox';
             else
-                error('exposer:unsupported_type', ...
+                dimension = [];
+                range = [];
+                control = [];
+                warning('exposer:unsupported_type', ...
                     'request for unsupported type translation: %s', type);
             end
         end
@@ -493,6 +496,18 @@ classdef exposer < handle
             end
         end
         
+        function handle = get_control(obj, prop, varargin)
+            % return a control handle for a specific property
+            [varargin, split_uipair] = arg(varargin, 'split_uipair', true, false);
+            arg(varargin);
+            
+            handle = obj.handles{find(string(obj.props(:, 1)) == prop)}; %#ok<FNDSB>
+            
+            if split_uipair && ~isempty(handle) && isa(handle, 'uipair')
+                handle = handle.h2;
+            end
+        end
+        
         function callback(obj, src, evnt, ii, value) %#ok<INUSL>
             % callback wrapper that does type conversion & bound checks and
             % updates the UI after setting the values
@@ -544,7 +559,9 @@ classdef exposer < handle
                 end
             end
             
-            if nargin(obj.callbacks{ii}) > 1
+            if nargin(obj.callbacks{ii}) > 2
+                obj.callbacks{ii}(value, obj.props{ii}, obj.handles{ii})
+            elseif nargin(obj.callbacks{ii}) > 1
                 obj.callbacks{ii}(value, obj.props{ii});
             else
                 obj.callbacks{ii}(value);
@@ -574,7 +591,7 @@ classdef exposer < handle
     
     methods(Static)
         function dim = get_dimension(val)
-            if ischar(val) && any(strcmpi(row(val'), {'on', 'off'}))
+            if ischar(val)
                 dim = 'scalar';
             elseif ndims(val) == 2 && all(size(val) == 1) %#ok<ISMAT>
                 dim = 'scalar';
