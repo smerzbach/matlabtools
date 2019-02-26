@@ -30,7 +30,8 @@ classdef iv < handle
         default_ui_tonemapping_channels_weight = -1;
         default_ui_tonemapping_histogram_weight = -1;
         default_ui_pixelinfo_weight = -1;
-        default_ui_selection_weight = -1;
+        default_ui_selection_weight = -2;
+        default_ui_comparison_weight = -1;
         
         slider_height = 65;
         left_width = 275;
@@ -58,12 +59,21 @@ classdef iv < handle
         tonemapper; % map image data to a range that allows for display
         rgb_mat;
         
+        compMode = 'collage';
+        collNR = 1;
+        collNC = 1;
+        collBW = 1;
+        collBVal = 0;
+        collTR = false;
+        
+        ui; % struct storing all layout handles
         ui_general_weight;
         ui_tonemapping_main_weight;
         ui_tonemapping_channels_weight;
         ui_tonemapping_histogram_weight;
         ui_pixelinfo_weight;
         ui_selection_weight;
+        ui_comparison_weight;
     end
     
     properties(Access = protected)
@@ -71,7 +81,6 @@ classdef iv < handle
         with_tonemapper;
         with_pixel_info;
         
-        ui; % struct storing all layout handles
         selected_image = 1;
         selected_frame = 1;
         
@@ -132,6 +141,8 @@ classdef iv < handle
                 obj.default_ui_pixelinfo_weight, false);
             [varargin, obj.ui_selection_weight] = arg(varargin, 'ui_selection_weight', ...
                 obj.default_ui_selection_weight, false);
+            [varargin, obj.ui_comparison_weight] = arg(varargin, 'ui_comparison_weight', ...
+                obj.default_ui_comparison_weight, false);
             if ~isempty(varargin)
                 unmatched = varargin(cellfun(@ischar, varargin));
                 unmatched = sprintf('%s, ', unmatched{:});
@@ -236,6 +247,68 @@ classdef iv < handle
             obj.paint();
         end
         
+        function add_image(obj, var_name)
+            % add an image from the base workspace to the list of images
+            obj.images{end + 1} = evalin('base', var_name);
+            obj.populate_image_list();
+        end
+        
+        function select_comparison_method(obj, mode)
+            % switch method how two ore more images are compared
+            control = obj.ui.exposer_comparison.get_control('compMode');
+            
+            if ~ismember(mode, control.String)
+                error('iv:unsupported_comparison_mode', ...
+                    'unsupported comparison mode %s', mode);
+            end
+            
+            if ~strcmpi(mode, 'collage')
+                error('iv:not_implemented', ...
+                    'comparison mode %s is not implemented yet', mode);
+            end
+                
+            obj.compMode = mode;
+        end
+        
+        function select_collage_nr(obj, nr)
+            % select number of rows for collage mode
+            obj.collNR = nr;
+            n = obj.get_num_selected();
+            obj.collNC = ceil(n / nr);
+            obj.change_image();
+            obj.paint();
+        end
+        
+        function select_collage_nc(obj, nc)
+            % select number of columns for collage mode
+            obj.collNC = nc;
+            n = obj.get_num_selected();
+            obj.collNR = ceil(n / nc);
+            obj.change_image();
+            obj.paint();
+        end
+        
+        function set_collage_border_width(obj, value)
+            % set thickness of border in collage comparison mode
+            obj.collBW = value;
+            obj.change_image();
+            obj.paint();
+        end
+        
+        function set_collage_border_value(obj, value)
+            % set intensity of border in collage comparison mode
+            obj.collBVal = value;
+            obj.change_image();
+            obj.paint();
+        end
+        
+        function set_collage_transpose(obj, value)
+            % set intensity of border in collage comparison mode
+            obj.collTR = value;
+            obj.change_image();
+            obj.paint();
+        end
+        
         function change_image(obj)
             % update UI after a new image was selected
             [im, im_comp] = obj.cur_img();
@@ -315,6 +388,109 @@ classdef iv < handle
     end
     
     methods(Access = protected)
+        function check_collage_nr_nc(obj)
+            % select number of columns for collage mode
+            nc = obj.collNC;
+            nr = obj.collNR;
+            n = obj.get_num_selected();
+            too_small = n > nr * nc;
+            too_large = nr * nc - n >= min(nr, nc);
+            if too_small
+                % increase the respective smaller one until there are
+                % enough rows and colums for all selected images
+                if nr < nc
+                    nr = ceil(n / nc);
+                else
+                    nc = ceil(n / nr);
+                end
+            elseif too_large
+                nr = floor(sqrt(n));
+                nc = ceil(n / nr);
+            end
+            obj.collNC = nc;
+            obj.collNR = nr;
+        end
+        
+        function create_collage(obj)
+            % when multiple images are selected, they can be arranged in a
+            % collage (given they all share the same dimensions and
+            % channels)
+            obj.collage = true;
+            sel = obj.selected_image();
+            
+            obj.check_collage_nr_nc();
+            
+            if ~isa(obj.disp_img, 'img') ...
+                    || isempty(intersect(sel, obj.disp_img.user.sel)) ...
+                    || obj.disp_img.user.nc ~= obj.collNC ...
+                    || obj.disp_img.user.nr ~= obj.collNR ...
+                    || obj.disp_img.user.border_width ~= obj.collBW ...
+                    || obj.disp_img.user.border_value ~= obj.collBVal ...
+                    || obj.disp_img.user.transpose ~= obj.collTR
+                % create new collage only when necessary
+                obj.disp_img = collage(obj.images(sel), ...
+                    'border_width', obj.collBW, ...
+                    'border_value', obj.collBVal, ...
+                    'nc', obj.collNC, ...
+                    'nr', obj.collNR, ...
+                    'transpose', obj.collTR); %#ok<CPROP>
+                obj.disp_img.storeUserData(struct(...
+                    'sel', sel, ...
+                    'nc', obj.collNC, ...
+                    'nr', obj.collNR, ...
+                    'border_width', obj.collBW, ...
+                    'border_value', obj.collBVal, ...
+                    'transpose', obj.collTR));
+            end
+        end
+        
+        function num = get_num_selected(obj)
+            % return number of selected images, which is relevant for the
+            % comparison mode
+            sel = obj.ui.lb_images.Value;
+            num = numel(sel);
+        end
+        
+        function set_image(obj, ind)
+            % remove viewer from previously selected image(s) and update it
+            % on the newly selected one(s)
+            cfun(@(im) im.remove_viewer(obj), obj.images(obj.selected_image));
+            obj.selected_image = ind;
+            cfun(@(im) im.add_viewer(obj), obj.images(obj.selected_image));
+        end
+        
+        %% UI
+        function show_meta_data(obj)
+            % display some meta data about the image
+            im = obj.cur_img();
+            str = string(im);
+            obj.ui.label_meta.String = str;
+        end
+        
+        function populate_image_list(obj)
+            % get names if they are stored in the images
+            im_names = cellfun(@(x) x.get_name(), obj.images, ...
+                'UniformOutput', false);
+            missing = cellfun(@isempty, im_names);
+            im_inds = 1 : numel(obj.images);
+            im_names(missing) = cellfun(@(x) sprintf('im%03d', x), ...
+                num2cell(im_inds(missing)), 'UniformOutput', false);
+            obj.ui.lb_images.String = im_names;
+        end
+        
+        function update_comparison_ui(obj)
+            % show comparison UI if two images are selected
+            if numel(obj.selected_image) >= 2
+                obj.ui.l4_comparison_uip.Visible = 'on';
+                obj.ui.l3_selection.Sizes = [obj.ui_selection_weight, ...
+                    min(150, 28 * numel(obj.ui.exposer_comparison.props))];
+%                     obj.ui_comparison_weight];
+            else
+                obj.ui.l4_comparison_uip.Visible = 'off';
+                obj.ui.l3_selection.Sizes = [-1, 0];
+                obj.collage = false;
+            end
+        end
         function ui_layout(obj)
             obj.ui.l0 = uiextras.HBoxFlex('Parent', obj.parent_handle, 'Spacing', 5);
             obj.ui.l1_left = uiextras.VBoxFlex('Parent', obj.ui.l0, 'Spacing', 5);
@@ -329,11 +505,11 @@ classdef iv < handle
             % image selection container
             obj.ui.l2_selection = uiextras.BoxPanel('Parent', obj.ui.l1_left, ...
                 'Title', 'Selection', 'FontSize', 7);
-            obj.ui.l3_selection = uiextras.VBox('Parent', obj.ui.l2_selection);
+            obj.ui.l3_selection = uiextras.VBoxFlex('Parent', obj.ui.l2_selection);
             obj.ui.l4_selection_uip = handle(uipanel('Parent', obj.ui.l3_selection));
             obj.ui.l4_comparison_uip = handle(uipanel('Parent', obj.ui.l3_selection, ...
                 'Title', 'Comparison', 'Visible', 'off'));
-            obj.ui.l5_comparison = uiextras.Grid('Parent', obj.ui.l4_comparison_uip);
+%             obj.ui.l5_comparison = uiextras.Grid('Parent', obj.ui.l4_comparison_uip);
             
             obj.ui.l2_tm_main.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_main, obj.ui.l1_left};
             obj.ui.l2_tm_channels.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_channels, obj.ui.l1_left};
@@ -352,7 +528,7 @@ classdef iv < handle
                 if obj.nf() > 1
                     obj.ui.l1_right.Heights = [0, -1, obj.slider_height];
                 else
-                    obj.ui.l1_right.Heights = [0, -1, 0];
+                    obj.ui.l1_right.Heights = [0, -1.1, 0];
                     obj.ui.container_frames.Visible = 'off';
                 end
             else
@@ -369,7 +545,6 @@ classdef iv < handle
             obj.ui.l1_left.Sizes = [obj.ui_tonemapping_main_weight, ...
                 obj.ui_tonemapping_channels_weight, hist_weight, ...
                 obj.ui_pixelinfo_weight, obj.ui_selection_weight];
-            obj.ui.l5_comparison.ColumnSizes = [75, -1];
             obj.ui.l3_selection.Sizes = [-1, 0];
         end
         
@@ -381,19 +556,19 @@ classdef iv < handle
             obj.populate_image_list();
             
             % image comparison UI
-            obj.ui.label_comparison_method = handle(uicontrol('Parent', obj.ui.l5_comparison, ...
-                'Style', 'text', 'String', 'method'));
-            obj.ui.label_comparison_cmap = handle(uicontrol('Parent', obj.ui.l5_comparison, ...
-                'Style', 'text', 'String', 'cmap'));
-            obj.ui.popup_comparison_method = handle(uicontrol('Parent', obj.ui.l5_comparison, ...
-                'Style', 'popupmenu', 'String', {'collage', 'sliding', 'horzcat', 'vertcat', ...
-                'A - B', 'B - A', 'abs(A - B)', 'RMSE', 'NRMSE', 'MAD'}, ...
-                'Callback', @obj.callback_ui));
-            obj.ui.popup_comparison_cmap = handle(uicontrol('Parent', obj.ui.l5_comparison, ...
-                'Style', 'popupmenu', 'String', {'parula', 'jet', 'hsv', 'hot', ...
-                'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', ...
-                'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag'}, ...
-                'Callback', @obj.callback_ui, 'Visible', 'on'));
+            obj.ui.exposer_comparison = exposer(obj, 'container', obj.ui.l4_comparison_uip, ...
+                'flex', true, ...
+                'nc', 1, ...
+                'sort', false, ...
+                'props', {...
+                'compMode', 'popupmenu', {'collage', 'sliding', ...
+                'A - B', 'B - A', 'abs(A - B)', 'RMSE', 'NRMSE', 'MAD'}, @obj.select_comparison_method; 
+                'collTR', 'checkbox', {0, 1}, @obj.set_collage_transpose;
+                'collNR', 'edit', {1, inf}, @obj.select_collage_nr; 
+                'collNC', 'edit', {1, inf}, @obj.select_collage_nc; 
+                'collBW', 'edit', {0, inf}, @obj.set_collage_border_width; 
+                'collBVal', 'edit', {-inf, inf}, @obj.set_collage_border_value; 
+                });
             
             % slider for image selection
             obj.ui.container_image_slider = handle(uipanel('Parent', obj.ui.l1_right, 'Title', 'image selection'));
@@ -422,44 +597,7 @@ classdef iv < handle
                 'Min', 0, 'Max', 2));
         end
         
-        function show_meta_data(obj)
-            % display some meta data about the image
-            im = obj.cur_img();
-            str = string(im);
-            obj.ui.label_meta.String = str;
-        end
-        
-        function populate_image_list(obj)
-            % get names if they are stored in the images
-            im_names = cellfun(@(x) x.get_name(), obj.images, ...
-                'UniformOutput', false);
-            missing = cellfun(@isempty, im_names);
-            im_inds = 1 : numel(obj.images);
-            im_names(missing) = cellfun(@(x) sprintf('im%03d', x), ...
-                num2cell(im_inds(missing)), 'UniformOutput', false);
-            obj.ui.lb_images.String = im_names;
-        end
-        
-        function update_comparison_ui(obj)
-            % show comparison UI if two images are selected
-            if numel(obj.selected_image) >= 2
-                obj.ui.l4_comparison_uip.Visible = 'on';
-                obj.ui.l3_selection.Sizes = [-1, 2 * 30 + 10];
-            else
-                obj.ui.l4_comparison_uip.Visible = 'off';
-                obj.ui.l3_selection.Sizes = [-1, 0];
-                obj.collage = false;
-            end
-        end
-        
-        function set_image(obj, ind)
-            % remove viewer from previously selected image(s) and update it
-            % on the newly selected one(s)
-            cfun(@(im) im.remove_viewer(obj), obj.images(obj.selected_image));
-            obj.selected_image = ind;
-            cfun(@(im) im.add_viewer(obj), obj.images(obj.selected_image));
-        end
-        
+        %% callbacks
         function callback_slider_images(obj, value)
             if obj.nocb_slider_images
                 return;
@@ -487,7 +625,8 @@ classdef iv < handle
                     obj.collage = false;
                 elseif numel(sel) > 1
                     obj.collage = true;
-                    obj.ui.popup_comparison_method.Value = 1;
+%                     obj.ui.popup_comparison_method.Value = ...
+%                         find(string(obj.ui.popup_comparison_method.String) == 'collage');
                 end
                 obj.set_image(src.Value);
                 old_slider_val = obj.ui.slider_images.get_value();
@@ -522,22 +661,6 @@ classdef iv < handle
             elseif src == obj.ui.popup_comparison_cmap
                 src.Value
             end
-        end
-        
-        function create_collage(obj)
-            obj.collage = true;
-            sel = obj.selected_image();
-            if ~isa(obj.disp_img, 'img') || ~isempty(intersect(sel, obj.disp_img.user.sel))
-                % create new collage only when necessary
-                obj.disp_img = collage(obj.images(sel), 'border_width', 1); %#ok<CPROP>
-                obj.disp_img.storeUserData(struct('sel', sel));
-            end
-        end
-        
-        function add_image(obj, var_name)
-            % add an image from the base workspace to the list of images
-            obj.images{end + 1} = evalin('base', var_name);
-            obj.populate_image_list();
         end
         
         function callback_key_press(obj, src, evnt)
