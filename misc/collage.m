@@ -44,16 +44,33 @@ function imcollage = collage(ims, varargin)
     [varargin, nr] = arg(varargin, 'nr', [], false); % desired number of rows
     [varargin, border_width] = arg(varargin, 'border_width', 0, false); % border width between the frames
     [varargin, border_value] = arg(varargin, 'border_value', 0, false); % pixel value of border between the frames
+    [varargin, pad] = arg(varargin, 'pad', true, false); % add padding to match the largest input dimensions
+    [varargin, pad_channels] = arg(varargin, 'pad_channels', true, false); % add padding to channels as well to allow concatenation
+    [varargin, pad_value] = arg(varargin, 'pad_value', 0, false); % value to put into padded areas
     arg(varargin);
     
+    % input checks
     is_img = cellfun(@(im) isa(im, 'img'), ims);
-    ncs = cellfun(@(im) size(im, 3), ims);
+    [heights, widths, ncs, higher] = cellfun(@(im) size(im), ims);
     if all(is_img)
         % ensure that wavelength sampling is the same
         assert(all(ncs(:) == ncs(1)) && all(cellfun(@(im) isequal(im.wls, ims{1}.wls), ims(:))), ...
             'all input wavelength samplings must be the same.');
     else
         assert(all(ncs(:) == ncs(1)), 'all inputs must have the same number of channels.');
+    end
+    assert(all(higher(:) == 1), 'arrays can at most be 3D!');
+    
+    % compute padding if necessary
+    paddings = zeros(numel(ims), 2);
+    target_height = max(heights(:));
+    target_width = max(widths(:));
+    target_nc = max(ncs(:));
+    if pad
+        paddings = [target_height - heights(:), target_width - widths(:)];
+    end
+    if pad_channels
+        paddings(:, 3) = ncs - target_nc; %#ok<NASGU>
     end
     
     % initialize output
@@ -65,6 +82,15 @@ function imcollage = collage(ims, varargin)
     
     % convert to standard arrays
     ims(is_img) = cfun(@(im) im.cdata, ims(is_img));
+    
+    % perform the actual padding
+    if pad || pad_channels
+        for ii = 1 : numel(ims)
+            ims{ii}(heights(ii) + 1 : target_height, ...
+                widths(ii) + 1 : target_width, ...
+                ncs(ii) + 1 : target_nc) = pad_value;
+        end
+    end
     
     n = numel(ims);
     if ~isempty(nr)
