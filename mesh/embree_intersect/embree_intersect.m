@@ -51,7 +51,7 @@ function varargout = embree_intersect(varargin)
     [varargin, faces] = arg(varargin, 'faces', {{}}, false);
     [varargin, ray_origins] = arg(varargin, 'ray_origins', {{}}, false);
     [varargin, ray_dirs] = arg(varargin, 'ray_dirs', {{}}, false);
-    [varargin, compute_points] = arg(varargin, 'compute_points', {{}}, false);
+    [varargin, compute_points] = arg(varargin, 'compute_points', true, false);
     arg(varargin);
     
     if ~isempty(vertices) && ~isempty(faces)
