@@ -85,11 +85,8 @@ classdef tonemapper < handle
             [varargin, obj.method] = arg(varargin, 'method', obj.method, false);
             [varargin, obj.callback] = arg(varargin, 'callback', obj.callback, false);
             [varargin, obj.orientation] = arg(varargin, 'orientation', obj.orientation, false);
-            
-            if ~isempty(varargin)
-                error('tonemapper:unsupported_argument', ...
-                    'unknown parameter name %s', varargin{1});
-            end
+            [varargin, obj.as_onchange] = arg(varargin, 'autoscale_onchange', obj.default_as_onchange, false);
+            arg(varargin);
             
             if ~ismember(obj.method, {'simple'})
                 error('tonemapper:illegal_method', ...

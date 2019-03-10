@@ -305,10 +305,7 @@ classdef sv < handle
                 ah = obj.ah_image;
             end
             if ~isempty(ah)
-                if any(ismember({'control'}, obj.key_mods))
-                    % right click (not ctrl + left click) -> add spectrum plot
-                    obj.callback_mouse_up(src, []);
-                elseif any(ismember({'alt'}, obj.sel_type))
+                if any(ismember({'alt'}, obj.sel_type))
                     % ctrl + click / right click -> remove spectrum plot
                     pos = ah.CurrentPoint(1, 1 : 2);
                     inside = arrayfun(@(s) all(abs([s.x, s.y] - pos) - 0.5 - ...

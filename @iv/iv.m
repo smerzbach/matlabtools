@@ -625,8 +625,6 @@ classdef iv < handle
                     obj.collage = false;
                 elseif numel(sel) > 1
                     obj.collage = true;
-%                     obj.ui.popup_comparison_method.Value = ...
-%                         find(string(obj.ui.popup_comparison_method.String) == 'collage');
                 end
                 obj.set_image(src.Value);
                 old_slider_val = obj.ui.slider_images.get_value();
