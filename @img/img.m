@@ -402,7 +402,7 @@ classdef img < handle & matlab.mixin.Copyable
             catch
                 if isscalar(input)
                     input = repmat(input, 1, 1, s(3));
-                elseif isvector(input)
+                elseif isvector(input) || size(input, 1) == 1 && size(input, 2) == 1
                     assert(numel(input.cdata) == s(3), ...
                         'input length must match the number of channels in the image!');
                     input = reshape(input, 1, 1, s(3));
@@ -477,7 +477,7 @@ classdef img < handle & matlab.mixin.Copyable
             
             if isscalar(input)
                 input = repmat(input, 1, 1, s(3));
-            elseif isvector(input)
+            elseif isvector(input) || size(input, 1) == 1 && size(input, 2) == 1
                 assert(numel(input) == s(3), ...
                     'input length must match the number of channels in the image!');
                 input = reshape(input, 1, 1, s(3));
@@ -1672,15 +1672,28 @@ classdef img < handle & matlab.mixin.Copyable
             end
         end
         
-        function obj = storeUserData(obj, input)
+        function obj = storeUserData(obj, varargin)
             % store user data in the .user field
+            if numel(varargin) == 1
+                input = varargin{1};
+            else
+                input = varargin;
+            end
+            
+            if ~isstruct(obj.user)
+                obj.user = struct();
+            end
+            
             if isstruct(input)
-                if ~isstruct(obj.user)
-                    obj.user = struct();
-                end
                 fns = fieldnames(input);
                 for fi = 1 : numel(fns)
                     obj.user.(fns{fi}) = input.(fns{fi});
+                end
+            elseif iscell(input) && mod(numel(input), 2) == 0
+                fns = input(1 : 2 : end);
+                vals = input(2 : 2 : end);
+                for fi = 1 : numel(fns)
+                    obj.user.(fns{fi}) = vals{fi};
                 end
             else
                 obj.user = input;
