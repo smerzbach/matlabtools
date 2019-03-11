@@ -27,10 +27,10 @@
 %
 % e = exposer(obj);
 %
-% e = exposer(obj, {...
-%     'field1', 'edit', 1, 10;   % expose obj.field1 in an edit box, bounds [1, 10]
-%     'field2', 'slider', 1, 100; % expose obj.field2 in a slider, bounds [1, 100]
-%     'field3', 'checkbox', 0, 1}); % expose obj.field3 as checkbox
+% e = exposer(obj, 'props', {...
+%     'field1', 'edit', {1, 10};   % expose obj.field1 in an edit box, bounds [1, 10]
+%     'field2', 'slider', {1, 100}; % expose obj.field2 in a slider, bounds [1, 100]
+%     'field3', 'checkbox', {0, 1}}); % expose obj.field3 as checkbox
 classdef exposer < handle
     properties
         object;
