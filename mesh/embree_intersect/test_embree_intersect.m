@@ -41,7 +41,7 @@ faces1 = faces1(1 : end - 1, 1 : end - 1, :);
 faces1 = reshape(permute(faces1, [3, 1, 2]), 3, [])';
 
 % generate second mesh
-n = 11;
+n = 60;
 [x1, y1, z1] = sphere(n - 1);
 x1 = x1 - 1;
 y1 = y1 - 1;
@@ -158,8 +158,51 @@ end
 ts = cfun(@(is) reshape(is.t(:), res_y, res_x), intersections);
 us = cfun(@(is) reshape(is.u(:), res_y, res_x), intersections);
 vs = cfun(@(is) reshape(is.v(:), res_y, res_x), intersections);
-pids = cfun(@(is) reshape(is.primitives(:), res_y, res_x), intersections);
+pids = cfun(@(is) reshape(is.objects(:), res_y, res_x), intersections);
 tids = cfun(@(is) reshape(is.triangles(:), res_y, res_x), intersections);
 points = cfun(@(is) reshape(is.points, res_y, res_x, 3), intersections);
 normals = cfun(@(is) reshape(is.normals, res_y, res_x, 3), intersections);
 sv([points, normals, ts, us, vs, pids, tids]);
+
+%% now add a light source and trace shadow rays
+nl = 10;
+light_thetas = col(linspace(70, 10, nl));
+light_poss = [-4 * sind(light_thetas), -ones(nl, 1), 4 * cosd(light_thetas)];
+
+% visualize
+scatter3(light_poss(:, 1), light_poss(:, 2), light_poss(:, 3), 100, '*');
+
+intersected = find(intersections{nn}.objects ~= -1);
+ray_origins = intersections{nn}.points(intersected, :);
+
+frames = repmat(ts(nn), nl, 1);
+frames = cfun(@(f) permute(f, [3, 1, 2]), frames);
+shadowed = cell(nl, 1);
+for ii = 1 : nl
+    ray_dirs = light_poss(ii, :) - ray_origins;
+    
+    ts_light = sqrt(sum(ray_dirs .^ 2, 2));
+    ray_dirs = ray_dirs ./ ts_light;
+    shadow_intersections = embree_intersect('ray_origins', ray_origins, 'ray_dirs', ray_dirs);
+    shadowed{ii} = shadow_intersections.t < ts_light - 2e-4 & shadow_intersections.objects ~= -1;
+    
+    frames{ii}(:, intersected(shadowed{ii})) = 0;
+    disp(ii);
+end
+frames = cfun(@(f) permute(f, [2, 3, 1]), frames);
+
+sv(frames);
+
+
+
+
+
+
+
+
+
+
+
+
+
+

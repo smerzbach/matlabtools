@@ -63,17 +63,22 @@ function varargout = embree_intersect(varargin)
             faces = {faces};
         end
         vertices = cfun(@single, vertices);
-        faces = cfun(@int32, faces);
+        faces = cfun(@(f) int32(f) - 1, faces);
         
         embree_intersect_mex(vertices, faces);
     elseif ~isempty(ray_origins) && ~isempty(ray_dirs)
         ray_origins = single(ray_origins);
         ray_dirs = single(ray_dirs);
         
-        [prim_triangle_ids, uvts, normals] = embree_intersect_mex(ray_origins, ray_dirs);
+        num_rays = size(ray_dirs, 1);
+        if size(ray_origins, 1)
+            ray_origins = repmat(ray_origins, num_rays, 1);
+        end
+        
+        [geom_triangle_ids, uvts, normals] = embree_intersect_mex(ray_origins, ray_dirs);
         varargout = {struct(...
-            'primitives', prim_triangle_ids(:, 1), ...
-            'triangles', prim_triangle_ids(:, 2), ...
+            'objects', geom_triangle_ids(:, 2), ...
+            'triangles', geom_triangle_ids(:, 1), ...
             'u', uvts(:, 1), ...
             'v', uvts(:, 2), ...
             't', uvts(:, 3), ...
@@ -81,7 +86,7 @@ function varargout = embree_intersect(varargin)
         
         if compute_points
             varargout{1}.points = ray_origins + uvts(:, 3) .* ray_dirs;
-            varargout{1}.points(prim_triangle_ids(:, 1) == -1, :) = nan;
+            varargout{1}.points(geom_triangle_ids(:, 1) == -1, :) = nan;
         end
     else
         error('embree_intersect:invalid_inputs', ...
