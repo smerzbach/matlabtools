@@ -87,6 +87,17 @@ function exr_write(im, filename, precision, channel_names, compression, varargin
         im = single(im);
     end
     
+    if ~exist('channel_names', 'var') || isempty(channel_names)
+        if size(im, 3) == 1
+            channel_names = {'L'};
+        elseif size(im, 3) == 3
+            channel_names = {'R', 'G', 'B'};
+        else
+            channel_names = cellfun(@(n) sprintf('C%d', n), num2cell(1 : size(im, 3)), ...
+                'UniformOutput', false);
+        end
+    end
+    
     if exist('channel_names', 'var') && isnumeric(channel_names) && numel(channel_names) == size(im, 3)
         channel_names = cellfun(@num2str, num2cell(channel_names), 'UniformOutput', false);
     end
@@ -95,17 +106,6 @@ function exr_write(im, filename, precision, channel_names, compression, varargin
             channel_names = num2cell(channel_names);
         else
             channel_names = {channel_names};
-        end
-    end
-    
-    if ~exist('channel_names', 'var')
-        if size(im, 3) == 1
-            channel_names = {'L'};
-        elseif size(im, 3) == 3
-            channel_names = {'R', 'G', 'B'};
-        else
-            channel_names = cellfun(@(n) sprintf('C%d', n), num2cell(1 : size(im, 3)), ...
-                'UniformOutput', false);
         end
     end
     
