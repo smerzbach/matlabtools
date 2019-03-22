@@ -38,7 +38,9 @@ function listing = dir_no_dots(input, as_struct, absolute) %#ok<INUSD>
     
     if ~as_struct
         if absolute
-            if ~verLessThan('matlab', '9.1')
+            if verLessThan('matlab', '9.1')
+                listing = afun(@(f) f.name, listing);
+            else
                 listing = cfun(@(s) fullfile(s.folder, s.name), num2cell(listing));
             end
         else
