@@ -28,13 +28,21 @@ function listing = dir_no_dots(input, as_struct, absolute) %#ok<INUSD>
     as_struct = default('as_struct', false);
     absolute = default('absolute', true);
     
-    listing = dir(input);
+    if verLessThan('matlab', '9.1')
+        error('dir_no_dots:unsupported', 'dir_no_dots is currently not supported on Matlab < 2016b');
+    else
+        listing = dir(input);
+    end
     dots = grep({listing.name}, '^\.{1,2}$');
     listing = listing(~dots);
     
     if ~as_struct
         if absolute
-            listing = cfun(@(s) fullfile(s.folder, s.name), num2cell(listing));
+            if verLessThan('matlab', '9.1')
+                error('dir_no_dots:unsupported', 'dir_no_dots is currently not supported on Matlab < 2016b');
+            else
+                listing = cfun(@(s) fullfile(s.folder, s.name), num2cell(listing));
+            end
         else
             listing = {listing.name}';
         end

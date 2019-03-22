@@ -66,7 +66,7 @@ function p = default(name, default)
                 elseif isnumeric(default) && numel(default) > 1
                     default_str = mat2str(default);
                 else
-                    default_str = string(default);
+                    default_str = char(default);
                 end
             catch
                 try
