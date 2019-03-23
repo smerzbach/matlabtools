@@ -70,7 +70,7 @@ function imcollage = collage(ims, varargin)
         paddings = [target_height - heights(:), target_width - widths(:)];
     end
     if pad_channels
-        paddings(:, 3) = ncs - target_nc; %#ok<NASGU>
+        paddings(:, 3) = col(ncs - target_nc); %#ok<NASGU>
     end
     
     % initialize output
@@ -127,4 +127,8 @@ function imcollage = collage(ims, varargin)
     end
     
     imcollage.assign(cell2mat(ims));
+    
+    if all(~is_img(:))
+        imcollage = imcollage.cdata;
+    end
 end
