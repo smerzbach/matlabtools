@@ -122,8 +122,10 @@ function imcollage = collage(ims, varargin)
         if isa(border_value, 'function_handle')
             border_value = border_value(ims);
         end
-        ims = cfun(@(im) padarray(im, [border_width, border_width, 0], ...
-            border_value, 'pre'), ims);
+        ims(2 : end, :) = cfun(@(im) padarray(im, [border_width, 0, 0], ...
+            border_value, 'pre'), ims(2 : end, :));
+        ims(:, 2 : end) = cfun(@(im) padarray(im, [0, border_width, 0], ...
+            border_value, 'pre'), ims(:, 2 : end));
     end
     
     imcollage.assign(cell2mat(ims));
