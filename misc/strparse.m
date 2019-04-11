@@ -90,8 +90,6 @@ function varargout = strparse(input, pattern, numeric) %#ok<INUSD>
     if ~any(matching)
         varargout = cell(1, nargout());
         varargout{end} = matching;
-        warning('strparse:none_matching', ...
-            'none of the input strings matches the specified pattern');
         return;
     end
     
