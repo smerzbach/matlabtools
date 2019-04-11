@@ -225,7 +225,18 @@ classdef sv < handle
             s = spectrum_struct;
             str_params = sprintf(['''DisplayName'', ''(x: [%d : %d], y: [%d : %d])'', ...\n', ...
                 '''Color'', [%f, %f, %f]'], s.x_min, s.x_max, s.y_min, s.y_max, s.color);
-            str_spec = sprintf('%3.1f, %3.4f;\n', [s.wls(:), s.spectrum(:)]');
+            if isempty(s.wls)
+                if numel(s.spectrum) == 1
+                    str_spec = num2str(s.spectrum);
+                else
+                    tmp = num2str(s.spectrum);
+                    tmp = mat2cell2(tmp, 1, []);
+                    tmp = [tmp(1); cfun(@(tmp) [', ', tmp], tmp(2 : end))];
+                    str_spec = strcat(tmp{:});
+                end
+            else
+                str_spec = sprintf('%3.1f, %3.4f;\n', [s.wls(:), s.spectrum(:)]');
+            end
             str_spec = ['[', str_spec(1 : end - 2), '], ...', sprintf('\n')]; %#ok<SPRINTFN>
             str = ['{', str_spec, str_params, '}'];
             obj.ui.edit_pixel_info.String = str;
