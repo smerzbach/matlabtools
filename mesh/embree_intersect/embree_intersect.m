@@ -71,7 +71,7 @@ function varargout = embree_intersect(varargin)
         ray_dirs = single(ray_dirs);
         
         num_rays = size(ray_dirs, 1);
-        if size(ray_origins, 1)
+        if size(ray_origins, 1) == 1
             ray_origins = repmat(ray_origins, num_rays, 1);
         end
         
