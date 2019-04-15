@@ -75,7 +75,8 @@ function imcollage = collage(ims, varargin)
     
     % initialize output
     if nnz(is_img)
-        imcollage = ims{is_img(1)}.copy_without_cdata();
+        tmp = find(is_img);
+        imcollage = ims{tmp(1)}.copy_without_cdata();
     else
         imcollage = img(zeros(0, 0, size(ims{1}, 3), class(ims{1})));
     end
