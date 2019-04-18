@@ -88,8 +88,8 @@ function varargout = strparse(input, pattern, numeric) %#ok<INUSD>
     matching = ~cellfun(@isempty, tokens);
     
     if ~any(matching)
-        varargout = cell(1, nargout() + 2);
-        varargout{end - 1} = matching;
+        varargout = cell(1, nargout());
+        varargout{end} = matching;
         return;
     end
     
