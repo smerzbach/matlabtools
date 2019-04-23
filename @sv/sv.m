@@ -124,6 +124,19 @@ classdef sv < handle
             v = obj.iv;
         end
         
+        function copy_clipboard(obj)
+            % create new figure to copy the current tonemapped image to
+            % clipboard for easy pasting in other applications
+            fig = figure('ToolBar', 'none', 'MenuBar', 'none', 'Visible', 'off');
+            ah = obj.iv.axes_handle;
+            copyobj(ah, fig);
+            w = diff(ah.XLim);
+            h = diff(ah.YLim);
+            fig.Position(3 : 4) = [w, h];
+            print(fig, '-clipboard', '-dbitmap');
+            delete(fig);
+        end
+        
         function add_spectrum(obj, x, y, width) %#ok<INUSD>
             % permanently add spectrum to plot for comparison
             width = default('width', obj.selector_radius);
@@ -192,11 +205,10 @@ classdef sv < handle
                 'HorizontalAlignment', 'left'));
             
             % options
-            obj.layout.l3_options_group1 = uiextras.HButtonBox('Parent', obj.layout.l2_options);
-            obj.layout.l3_options_group1.ButtonSize = [155, 28];
+            obj.layout.l3_misc = uiextras.GridFlex('Parent', obj.layout.l2_options);
             
             % selector radius
-            tmp = uipair(obj.layout.l3_options_group1, 'horizontal', ...
+            tmp = uipair(obj.layout.l3_misc, 'horizontal', ...
                 @uicontrol, {'Style', 'text', 'String', 'selector radius'}, ...
                 @uispinner, {'value', obj.selector_radius, 'step_size', 1, ...
                 'minimum', 0, ...
@@ -204,9 +216,13 @@ classdef sv < handle
             obj.ui.spinner_selector_radius = tmp.h2;
             tmp.grid.ColumnSizes = [100, 50];
             % get obj
-            obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_options_group1, ...
+            obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_misc, ...
                 'Style', 'pushbutton', 'String', 'get obj', 'Callback', @obj.callback_ui, ...
                 'FontSize', 6, 'ToolTip', 'create viewer variable in workspace'));
+            % copy to clipboard
+            obj.ui.bt_clipboard = handle(uicontrol('Parent', obj.layout.l3_misc, ...
+                'Style', 'pushbutton', 'String', 'copy', 'Callback', @obj.callback_ui, ...
+                'FontSize', 6, 'ToolTip', 'copy tonemapped image to clipboard'));
         end
         
         function finalize_layout(obj)
@@ -303,6 +319,8 @@ classdef sv < handle
         function callback_ui(obj, src, evnt) %#ok<INUSD>
             if src == obj.ui.bt_get_object
                 assignin('base', 'v', obj);
+            elseif src == obj.ui.bt_clipboard
+                obj.copy_clipboard();
             end
         end
         
