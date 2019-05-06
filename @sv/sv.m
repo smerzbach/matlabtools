@@ -244,16 +244,18 @@ classdef sv < handle
             if isempty(s.wls)
                 if numel(s.spectrum) == 1
                     str_spec = num2str(s.spectrum);
+                    str_spec = [str_spec, sprintf('\n')]; %#ok<SPRINTFN>
                 else
                     tmp = num2str(s.spectrum);
                     tmp = mat2cell2(tmp, 1, []);
                     tmp = [tmp(1); cfun(@(tmp) [', ', tmp], tmp(2 : end))];
                     str_spec = strcat(tmp{:});
+                    str_spec = ['[', str_spec, '], ...', sprintf('\n')]; %#ok<SPRINTFN>
                 end
             else
                 str_spec = sprintf('%3.1f, %3.4f;\n', [s.wls(:), s.spectrum(:)]');
+                str_spec = ['[', str_spec(1 : end - 2), '], ...', sprintf('\n')]; %#ok<SPRINTFN>
             end
-            str_spec = ['[', str_spec(1 : end - 2), '], ...', sprintf('\n')]; %#ok<SPRINTFN>
             str = ['{', str_spec, str_params, '}'];
             obj.ui.edit_pixel_info.String = str;
         end
