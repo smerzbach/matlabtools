@@ -1143,6 +1143,11 @@ classdef img < handle & matlab.mixin.Copyable
             num_frames = size(obj.cdata, 4);
         end
         
+        function nd = ndims(obj)
+            % return number of dimensions
+            nd = ndims(obj.cdata);
+        end
+        
         function varargout = size(obj, varargin)
             % size function returns dimensions of underlying array
             varargout = cell(1, max(1, nargout));

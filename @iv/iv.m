@@ -117,15 +117,28 @@ classdef iv < handle
             if ~isempty(first_char_arg)
                 im_mat_inds(im_mat_inds > first_char_arg) = [];
             end
-            sparse_inds = cellfun(@issparse, varargin);
-            varargin(sparse_inds) = cfun(@full, varargin(sparse_inds));
-
-            varargin(im_mat_inds) = cfun(@(im) img(im), varargin(im_mat_inds));
             
-            % grab all inputs that are img objects
-            img_inds = cellfun(@(x) isa(x, 'img'), varargin);
-            obj.images = varargin(img_inds);
-            varargin = varargin(~img_inds);
+            % split image inputs from parameter-value pairs
+            inputs = varargin(im_mat_inds);
+            varargin(im_mat_inds) = [];
+            
+            % convert sparse to dense matrices
+            sparse_inds = cellfun(@issparse, inputs);
+            inputs(sparse_inds) = cfun(@full, inputs(sparse_inds));
+            
+            % automatically split 4D arrays along fourth dimension
+            nds4 = find(cellfun(@ndims, inputs) == 4);
+            inputs(nds4) = cfun(@(ims) mat2cell2(ims, [], [], [], 1), ...
+                inputs(nds4));
+            
+            % merge multiple separate cell arrays into one
+            inputs = cat2(1, cfun(@(c) c(:), inputs));
+
+            % convert everything to img objects
+            inputs = cfun(@(im) img(im), inputs);
+            
+            % store input images in object
+            obj.images = inputs;
             
             % parse inputs & set / create handles
             [varargin, parent] = arg(varargin, 'parent', [], false);
