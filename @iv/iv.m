@@ -110,7 +110,7 @@ classdef iv < handle
             % string argument to avoid converting values of
             % parameter-value pairs
             first_char_arg = find(cellfun(@ischar, varargin), 1);
-            im_mat_inds = cellfun(@(input) (isnumeric(input) || islogical(input)) ...
+            im_mat_inds = cellfun(@(input) (isnumeric(input) || islogical(input) || isa(input, 'img')) ...
                 && ndims(input) >= 2 ...
                 && ndims(input) <= 4, varargin);
             im_mat_inds = find(im_mat_inds);
@@ -132,7 +132,9 @@ classdef iv < handle
                 inputs(nds4));
             
             % merge multiple separate cell arrays into one
-            inputs = cat2(1, cfun(@(c) c(:), inputs));
+            inputs(cellfun(@iscell, inputs)) = cfun(@(ims) ims(:), inputs(cellfun(@iscell, inputs)));
+            inputs(~cellfun(@iscell, inputs)) = cfun(@(im) {im}, inputs(~cellfun(@iscell, inputs)));
+            inputs = cat2(1, cfun(@(c) c, inputs));
 
             % convert everything to img objects
             inputs = cfun(@(im) img(im), inputs);
