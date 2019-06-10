@@ -137,7 +137,8 @@ classdef iv < handle
             inputs = cat2(1, cfun(@(c) c, inputs));
 
             % convert everything to img objects
-            inputs = cfun(@(im) img(im), inputs);
+            is_img = cellfun(@(im) isa(im, 'img'), inputs);
+            inputs(~is_img) = cfun(@(im) img(im), inputs(~is_img));
             
             % store input images in object
             obj.images = inputs;
