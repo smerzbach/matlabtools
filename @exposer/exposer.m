@@ -64,9 +64,10 @@ classdef exposer < handle
             'int64', 'uint64', ...
             'single', 'double', ...
             'char', 'string', ...
-            'numericorstring'};
-        supported_dimensions = {'scalar', 'vector', 'matrix'};
-        supported_controls = {'checkbox', 'edit', 'popupmenu', 'slider', 'sliderEdit', 'spinner'};
+            'numericorstring', ...
+            'function_handle'};
+        supported_dimensions = {'none', 'scalar', 'vector', 'matrix'};
+        supported_controls = {'button', 'checkbox', 'edit', 'popupmenu', 'slider', 'sliderEdit', 'spinner'};
         type_map = {...
             'matlab.graphics.datatype.ActivePosition', 'char', 'scalar', {'position', 'outerposition'}, 'popupmenu';
             'matlab.graphics.datatype.AlphaDataMapping', 'char', 'scalar', {'none', 'scaled', 'direct'}, 'popupmenu';
@@ -151,7 +152,7 @@ classdef exposer < handle
         function obj = exposer(object, varargin)
             [varargin, props] = arg(varargin, 'props', [], false);
             [varargin, show_hidden] = arg(varargin, 'show_hidden', false, false);
-            [varargin, do_sort] = arg(varargin, 'sort', true, false);
+            [varargin, do_sort] = arg(varargin, 'sort', false, false);
             [varargin, obj.container] = arg(varargin, 'container', [], false);
             [varargin, obj.orientation] = arg(varargin, 'orientation', obj.orientation, false);
             [varargin, obj.scrollable] = arg(varargin, 'scrollable', obj.scrollable, false);
@@ -265,50 +266,56 @@ classdef exposer < handle
                 all_props = string({obj.meta.PropertyList.Name})';
                 for ii = 1 : n
                     prop = obj.props{ii};
-                    ind = find(all_props == prop);
-                    if isempty(ind)
-                        error('exposer:invalid_prop', ...
-                            'unknown property %s in class %s', prop, cls);
-                    end
-
-                    % if property types are specified via the @ syntax in the
-                    % class, we rely on this 
-                    type = obj.meta.PropertyList(ind).Type.Name;
-
-                    % try to parse potential type specifiers
-                    tokens = regexpi(type, '(.+) (scalar|vector|matrix)$', 'tokens');
-                    if ~isempty(tokens)
-                        % type specifier with dimensions available
-                        type = tokens{1}{1};
-                        dim = tokens{1}{2};
+                    if isa(prop, 'function_handle')
+                        obj.types{ii} = 'function_handle';
+                        obj.dimensions{ii} = 'none';
+                        obj.callbacks{ii} = prop;
                     else
-                        % no type specifiers -> extract the property value
-                        val = obj.object.(prop);
-                        
-                        % try to auto detect the property type from its
-                        % current value
-                        type = class(val);
-                        % also use current value to determine dimensionality
-                        dim = exposer.get_dimension(val);
-                    end
-                    
-                    if regexp(type, 'on_off')
-                        % "boolean" values with 'on' / 'off' need special
-                        % treatment (used throughout Matlab's handle
-                        % classes)
-                        type = 'onoff';
-                    end
-                    
-                    if isempty(obj.types{ii})
-                        obj.types{ii} = type;
-                    end
-                    if isempty(obj.dimensions{ii})
-                        obj.dimensions{ii} = dim;
-                    end
-                    
-                    % set default callback
-                    if isempty(obj.callbacks{ii})
-                        obj.callbacks{ii} = @(value, prop) setfield(obj.object, prop, value);
+                        ind = find(all_props == prop);
+                        if isempty(ind)
+                            error('exposer:invalid_prop', ...
+                                'unknown property %s in class %s', prop, cls);
+                        end
+
+                        % if property types are specified via the @ syntax in the
+                        % class, we rely on this 
+                        type = obj.meta.PropertyList(ind).Type.Name;
+
+                        % try to parse potential type specifiers
+                        tokens = regexpi(type, '(.+) (scalar|vector|matrix)$', 'tokens');
+                        if ~isempty(tokens)
+                            % type specifier with dimensions available
+                            type = tokens{1}{1};
+                            dim = tokens{1}{2};
+                        else
+                            % no type specifiers -> extract the property value
+                            val = obj.object.(prop);
+
+                            % try to auto detect the property type from its
+                            % current value
+                            type = class(val);
+                            % also use current value to determine dimensionality
+                            dim = exposer.get_dimension(val);
+                        end
+
+                        if regexp(type, 'on_off')
+                            % "boolean" values with 'on' / 'off' need special
+                            % treatment (used throughout Matlab's handle
+                            % classes)
+                            type = 'onoff';
+                        end
+
+                        if isempty(obj.types{ii})
+                            obj.types{ii} = type;
+                        end
+                        if isempty(obj.dimensions{ii})
+                            obj.dimensions{ii} = dim;
+                        end
+
+                        % set default callback
+                        if isempty(obj.callbacks{ii})
+                            obj.callbacks{ii} = @(value, prop) setfield(obj.object, prop, value);
+                        end
                     end
                 end
 
@@ -337,9 +344,13 @@ classdef exposer < handle
                 end
             end
             
+            % sort properties alphabetically
             if do_sort
-                % sort properties alphabetically
-                [obj.props, perm] = sort(obj.props);
+                % put buttons first
+                isFunctionHandle = cellfun(@(prop) isa(prop, 'function_handle'), obj.props);
+                [~, perm] = sort(obj.props(~isFunctionHandle));
+                perm = [find(isFunctionHandle); perm];
+                obj.props = obj.props(perm);
                 obj.types = obj.types(perm);
                 obj.dimensions = obj.dimensions(perm);
                 obj.ranges = obj.ranges(perm);
@@ -423,63 +434,76 @@ classdef exposer < handle
             obj.handles = cell(numel(obj.props), 1);
             for ii = 1 : numel(obj.props)
                 [~, ci] = ind2sub([obj.nr, obj.nc], ii);
-                value = obj.object.(obj.props{ii});
-                if strcmpi(obj.types{ii}, 'onoff')
-                    value = onoff2bool(value);
-                end
-                if strcmpi(obj.controls{ii}, 'checkbox')
+                if strcmpi(obj.controls{ii}, 'button')
                     control = @uicontrol;
-                    params = {'Style', 'checkbox', ...
-                        'Value', value, ...
-                        'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.Value)};
-                elseif strcmpi(obj.controls{ii}, 'edit')
-                    control = @uicontrol;
-                    params = {'Style', 'edit', ...
-                        'String', char(tb.to_str(value)), ...
-                        'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.String)};
-                elseif strcmpi(obj.controls{ii}, 'popupmenu')
-                    control = @uicontrol;
-                    vals = obj.ranges{ii};
-                    index = find(strcmp(vals, value));
-                    params = {'Style', 'popupmenu', ...
-                        'String', vals, ...
-                        'Value', index, ...
-                        'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.String{src.Value})};
-                elseif strcmpi(obj.controls{ii}, 'slider')
-                    control = @uicontrol;
-                    % no callback here to prevent repeated triggering after
-                    % the continuous callback (see below)
-                    params = {'Style', 'slider', ...
-                        'SliderStep', [0.002, 0.02], ...
-                        'Min', obj.ranges{ii}{1}, ...
-                        'Max', obj.ranges{ii}{2}, ...
-                        'Value', value};
-                elseif strcmpi(obj.controls{ii}, 'sliderEdit')
-                    control = @uigroup;
-                    % no callback here to prevent repeated triggering after
-                    % the continuous callback (see below)
-                    params = {...
-                        @uicontrol, ...
-                        {'Style', 'slider', ...
-                        'SliderStep', [0.002, 0.02], ...
-                        'Min', obj.ranges{ii}{1}, ...
-                        'Max', obj.ranges{ii}{2}, ...
-                        'Value', value}, ...
-                        @uicontrol, ...
-                        {'Style', 'edit', ...
-                        'String', char(tb.to_str(value)), ...
-                        'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.String)}};
-                elseif strcmpi(obj.controls{ii}, 'spinner')
-                    control = @uispinner;
-                    params = {'value', value, ...
-                        'callback', @(src, value) obj.callback(src, [], ii, value)};
+                    label = func2str(obj.props{ii});
+                    label = strrep(label, '@(varargin)obj.', '');
+                    label = strrep(label, '(varargin{:})', '()');
+                    params = {'Style', 'pushbutton', ...
+                        'String', label, ...
+                        'Callback', @(src, evnt) obj.props{ii}()};
                 else
-                    error('exposer:unsupported_control', ...
-                        'unsupported uicontrol: %s', obj.controls{ii});
+                    value = obj.object.(obj.props{ii});
+                    if strcmpi(obj.types{ii}, 'onoff')
+                        value = onoff2bool(value);
+                    end
+                    if strcmpi(obj.controls{ii}, 'checkbox')
+                        control = @uicontrol;
+                        params = {'Style', 'checkbox', ...
+                            'Value', value, ...
+                            'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.Value)};
+                    elseif strcmpi(obj.controls{ii}, 'edit')
+                        control = @uicontrol;
+                        params = {'Style', 'edit', ...
+                            'String', char(tb.to_str(value)), ...
+                            'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.String)};
+                    elseif strcmpi(obj.controls{ii}, 'popupmenu')
+                        control = @uicontrol;
+                        vals = obj.ranges{ii};
+                        index = find(strcmp(vals, value));
+                        params = {'Style', 'popupmenu', ...
+                            'String', vals, ...
+                            'Value', index, ...
+                            'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.String{src.Value})};
+                    elseif strcmpi(obj.controls{ii}, 'slider')
+                        control = @uicontrol;
+                        % no callback here to prevent repeated triggering after
+                        % the continuous callback (see below)
+                        params = {'Style', 'slider', ...
+                            'SliderStep', [0.002, 0.02], ...
+                            'Min', obj.ranges{ii}{1}, ...
+                            'Max', obj.ranges{ii}{2}, ...
+                            'Value', value};
+                    elseif strcmpi(obj.controls{ii}, 'sliderEdit')
+                        control = @uigroup;
+                        % no callback here to prevent repeated triggering after
+                        % the continuous callback (see below)
+                        params = {...
+                            @uicontrol, ...
+                            {'Style', 'slider', ...
+                            'SliderStep', [0.002, 0.02], ...
+                            'Min', obj.ranges{ii}{1}, ...
+                            'Max', obj.ranges{ii}{2}, ...
+                            'Value', value}, ...
+                            @uicontrol, ...
+                            {'Style', 'edit', ...
+                            'String', char(tb.to_str(value)), ...
+                            'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.String)}};
+                    elseif strcmpi(obj.controls{ii}, 'spinner')
+                        control = @uispinner;
+                        params = {'value', value, ...
+                            'callback', @(src, value) obj.callback(src, [], ii, value)};
+                    else
+                        error('exposer:unsupported_control', ...
+                            'unsupported uicontrol: %s', obj.controls{ii});
+                    end
                 end
                 
                 % create labeled control
-                if strcmpi(obj.controls{ii}, 'sliderEdit')
+                if strcmpi(obj.controls{ii}, 'button')
+                    obj.handles{ii} = uicontrol('Parent', obj.ui.l1_bbs{ci}, ...
+                        params{:});
+                elseif strcmpi(obj.controls{ii}, 'sliderEdit')
                     % more than two ui elements in one group
                     params = [{@uicontrol}, {{'Style', 'text', 'String', obj.props{ii}, ...
                         'HorizontalAlignment', ternary(strcmpi(obj.orientation, 'horizontal'), ...
