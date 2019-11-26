@@ -42,12 +42,12 @@ function varargout = bla(varargin)
 end
 ```
 
-More complex compiler instructions, e.g. multiple source files can be specified by the following name-value pairs:
-  * mex_file: desired name of the compiled MEX file, defaults to `['caller_mex', mexext]`
-  * sources:  cell array of C/C++/Fortran files that need to be compiled, defaults to 'caller_mex.cpp' or 'caller_mex.c'
-  * headers:  additional cell array of header files whose modification time stamps should be checked (not passed to `mex()`)
-  * openmp:   set to true if you want to compile with OpenMP support
-  * cpp11:    set to true (default) to enable the C++11 standard
+More complex compiler instructions, e.g. multiple source files, can be specified by the following name-value pairs:
+  * **mex_file**: desired name of the compiled MEX file, defaults to `['caller_mex', mexext]`
+  * **sources**:  cell array of C/C++/Fortran files that need to be compiled, defaults to 'caller_mex.cpp' or 'caller_mex.c'
+  * **headers**:  additional cell array of header files whose modification time stamps should be checked (not passed to `mex()`)
+  * **openmp**:   set to true if you want to compile with OpenMP support
+  * **cpp11**:    set to true (default) to enable the C++11 standard
   
 Any further inputs are directly passed to `mex()`.
 
@@ -74,6 +74,13 @@ output arguments. Even better, having an accompanying m-file for your source cod
 in general, as it is so much nicer to do input checks and parsing in Matlab than in C/C++!
 Besides that, you can use the m-file to display help texts, which is not possible with compilable
 source code only.
+
+
+## OpenEXR-reading and writing
+
+Most existing solutions for loading or saving EXR images in Matlab are limited. Many only support RGB(A), even though OpenEXR supports an arbitrary number of images.
+In this repo, you can find the functions `exr_read()`, `exr_write()` and `exr_query()`, which provide reading, writing and meta data functionality. They are wrapper Matlab functions around C++ code that make use of the nice header-only [tinyexr](https://github.com/syoyo/tinyexr) library by Syoyo Fujita. They automatically compile on the first call, and I/O speeds are fast. They support reading and writing arbitrary channel numbers with all supported pixel formats (half and single precision float, as well as uint32). More advanced OpenEXR features like tiled or deep images are currently not supported, but can be added easily.
+
 
 # convenience functions
 Matlab's toolset is great and all, but some of its functions have annoying syntaxes that drive you
