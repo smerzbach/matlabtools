@@ -638,6 +638,13 @@ classdef exposer < handle
                     'unsupported uicontrol: %s', obj.controls{ii});
             end
         end
+        
+        function setLayout(obj, widths)
+            for ii = 1 : numel(obj.controls)
+                g = obj.handles{ii}.grid;
+                g.Widths = widths(1 : numel(g.Widths));
+            end
+        end
     end
     
     methods(Static)
