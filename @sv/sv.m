@@ -87,7 +87,7 @@ classdef sv < handle
                 obj.default_ui_right_width);
             
             if isempty(parent)
-                parent = handle(figure('Position', [1028, 168, 1366, 800]));
+                parent = handle(figure());
                 p = parent.Position;
                 parent.Position = [p(1), p(2) - (800 - p(4)), 1000, 800];
                 parent = handle(axes('Parent', parent));
