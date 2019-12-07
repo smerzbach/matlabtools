@@ -47,6 +47,7 @@ function imcollage = collage(ims, varargin)
     [varargin, pad] = arg(varargin, 'pad', true, false); % add padding to match the largest input dimensions
     [varargin, pad_channels] = arg(varargin, 'pad_channels', true, false); % add padding to channels as well to allow concatenation
     [varargin, pad_value] = arg(varargin, 'pad_value', 0, false); % value to put into padded areas
+    [varargin, missing_value] = arg(varargin, 'missing_value', 0, false); % value to put into padded areas
     arg(varargin);
     
     % input checks
@@ -54,7 +55,7 @@ function imcollage = collage(ims, varargin)
     [heights, widths, ncs, higher] = cellfun(@(im) size(im), ims);
     if all(is_img)
         % ensure that wavelength sampling is the same
-        assert(all(ncs(:) == ncs(1)) && all(cellfun(@(im) isequal(im.wls, ims{1}.wls), ims(:))), ...
+        assert(all(cellfun(@(im) isequal(im.wls, ims{1}.wls), ims(:))), ...
             'all input wavelength samplings must be the same.');
     else
         assert(all(ncs(:) == ncs(1)), 'all inputs must have the same number of channels.');
@@ -72,6 +73,8 @@ function imcollage = collage(ims, varargin)
     if pad_channels
         paddings(:, 3) = col(ncs - target_nc); %#ok<NASGU>
     end
+    
+    missing_value = repmat(missing_value, 1, 1, size(ims{1}, 3));
     
     % initialize output
     if nnz(is_img)
@@ -110,7 +113,7 @@ function imcollage = collage(ims, varargin)
     end
     n2 = nr * nc;
     
-    imempty = zeros(size(ims{1}), class(ims{1}));
+    imempty = reshape(missing_value, 1, 1, size(ims{1}, 3)) .* ones(size(ims{1}), class(ims{1}));
     
     % "pad" with zero-images to match the number of rows and columns
     ims(end + 1 : n2) = repmat({imempty}, n2 - n, 1);
