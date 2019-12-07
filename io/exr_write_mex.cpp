@@ -194,7 +194,12 @@ void mexFunction(int nlhs, mxArray *plhs[],int nrhs, const mxArray *prhs[]) {
     header.compression_type = compression;
     
     const char *err;
-    int ret = SaveEXRImageToFile(&image, &header, filename, &err);
+    int ret;
+    try {
+        ret = SaveEXRImageToFile(&image, &header, filename, &err);
+    } catch (std::exception err) {
+        mexErrMsgTxt((std::string("error in writing EXR file: ") + err.what()).c_str());
+    }
     if (ret != TINYEXR_SUCCESS) {
         mexErrMsgTxt((std::string("error in writing EXR file ") + std::string(filename) + 
                 std::string(", return code: ") + std::to_string(ret) + 
