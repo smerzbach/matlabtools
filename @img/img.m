@@ -1367,7 +1367,7 @@ classdef img < handle & matlab.mixin.Copyable
             name = obj.name;
         end
         
-        function set_name(obj, name)
+        function obj = set_name(obj, name)
             % store name in image object
             obj.name = name;
         end
