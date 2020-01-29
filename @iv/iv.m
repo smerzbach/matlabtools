@@ -159,6 +159,10 @@ classdef iv < handle
                 obj.default_ui_selection_weight, false);
             [varargin, obj.ui_comparison_weight] = arg(varargin, 'ui_comparison_weight', ...
                 obj.default_ui_comparison_weight, false);
+            [varargin, tm_gamma] = arg(varargin, 'gamma', 1);
+            [varargin, tm_offset] = arg(varargin, 'offset', 0);
+            [varargin, tm_scale] = arg(varargin, 'scale', 1);
+            tonemapper_params = {'gamma', tm_gamma, 'scale', tm_scale, 'offset', tm_offset};
             if ~isempty(varargin)
                 unmatched = varargin(cellfun(@ischar, varargin));
                 unmatched = sprintf('%s, ', unmatched{:});
@@ -201,7 +205,7 @@ classdef iv < handle
             obj.ui_layout();
             obj.ui_initialize();
             
-            obj.tonemapper = tonemapper('callback', @obj.paint);
+            obj.tonemapper = tonemapper('callback', @obj.paint, tonemapper_params{:});
             obj.tonemapper.create_ui(obj.ui.l2_tm_main.Parent, ...
                 'ui_main_weight', obj.ui_tonemapping_main_weight, ...
                 'ui_channels_weight', obj.ui_tonemapping_channels_weight, ...
