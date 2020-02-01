@@ -30,22 +30,16 @@
 % second return argument.
 %
 % Example:
-% args = {'a', 1, 'b', 2, 'd', 4, 'f', 'test'};
-% [args, a, b, c] = arg(args, {'a', 'b', 'c'}, 0)
+% args = {'a', 1, 'd', 4, 'f', 'test', 'b', 2, };
+% [args, a_b_or_c] = arg(args, {'a', 'b', 'c'}, 0)
 % 
 % args =
 %   1×4 cell array
 %     'd'    [4]    'f'    'test'
 % 
-% a =
+% a_b_or_c =
 %      1
-% 
-% b =
-%      2
-%
-% c =
-%      0
-function [args, varargout] = arg(args, names, defaults, match_case)
+function [args, value] = arg(args, names, default, match_case)
     if ~exist('names', 'var') || isempty(names)
         % error checking mode (if args is not empty, there were unsupported
         % parameter value pairs)
@@ -65,66 +59,55 @@ function [args, varargout] = arg(args, names, defaults, match_case)
         names = {names};
     end
     
-    if ~exist('defaults', 'var')
-        defaults = [];
+    if ~exist('default', 'var')
+        default = [];
     end
     
-    if ~iscell(defaults)
-        defaults = {defaults};
-    end
-    
-    defaults = repmat(defaults(:), ceil(numel(names) / max(1, numel(defaults))), 1);
+    value = default;
     
     if ~exist('match_case', 'var') || isempty(match_case)
         match_case = true;
     end
     
+    % find first name that matches any of the specified ones
     if iscell(args)
         if match_case
-            matching = find(cellfun(@(name) any(strcmp(name, args(1 : 2 : end))), names));
-            inds = cellfun(@(name) find(strcmp(name, args), 1), names(matching));
+%             matching = find(cellfun(@(name) any(strcmp(name, args(1 : 2 : end))), names));
+            matching = find(cellfun(@(arg) any(find(strcmp(names, arg))), args(1 : 2 : end)));
         else
-            matching = find(cellfun(@(name) any(strcmpi(name, args(1 : 2 : end))), names));
-            inds = cellfun(@(name) find(strcmpi(name, args), 1), names(matching));
+%             matching = find(cellfun(@(name) any(strcmpi(name, args(1 : 2 : end))), names));
+            matching = find(cellfun(@(arg) any(find(strcmpi(names, arg))), args(1 : 2 : end)));
         end
 
-        if any(inds + 1 > numel(args))
+        if any(2 * matching > numel(args))
             error('arg:invalid_input', 'input must contain name-value-pairs');
         end
         
-        values = args(inds + 1);
+        if ~isempty(matching)
+            value = args{2 * matching(1)};
+        end
     elseif isstruct(args)
         fns = fieldnames(args);
+        fns2 = fns;
+        names2 = names;
         if match_case
-            fns2 = fns;
-            names2 = names;
+            matching = find(cellfun(@(name) any(strcmp(name, fns2)), names2));
         else
-            fns2 = cfun(@lower, fns);
-            names2 = cfun(@lower, names);
+            matching = find(cellfun(@(name) any(strcmpi(name, fns2)), names2));
         end
-        matching = find(cellfun(@(name) any(strcmp(name, fns2)), names2));
-        values = cfun(@(fieldname) args.(fieldname), names(matching));
+        if ~isempty(matching)
+            value = args.(names{matching(1)});
+        end
     else
         error('arg:invalid_input', 'input of type %s is not supported.', class(args));
     end
-        
-    varargout = cell(1, numel(names));
     
-    if isempty(args)
-        [varargout{:}] = deal(defaults{:});
-    else
-        % return values that were found
-        [varargout{matching}] = deal(values{:});
-
-        % set defaults for those names not found
-        missing = setdiff(1 : numel(names), matching);
-        [varargout{missing}] = deal(defaults{missing});
-
+    if ~isempty(matching)
         % remove those name-value-pairs that were found
         if iscell(args)
-            args([inds, inds + 1]) = [];
+            args(2 * matching + [-1; 0]) = [];
         elseif isstruct(args)
-            for ii = 1 : numel(fns(matching))
+            for ii = 1 : numel(matching)
                 args = rmfield(args, fns{matching(ii)});
             end
         end

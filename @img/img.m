@@ -82,31 +82,25 @@ classdef img < handle & matlab.mixin.Copyable
             end
             
             % parse name-value pairs
-            for ii = 1 : 2 : numel(varargin)
-                if ~ischar(varargin{ii})
-                    error('img:name_value_pairs', ...
-                        'Inputs should be name-value pairs of parameters.');
-                end
-                switch lower(varargin{ii})
-                    case {'channel_names', 'channels', 'chans', 'wls', 'wavelengths'}
-                        channel_names = varargin{ii + 1};
-                        if ischar(channel_names) || isnumeric(channel_names)
-                            channel_names = num2cell(channel_names);
-                        end
-                        if ~iscell(channel_names)
-                            error('img:channel_format', ...
-                                'channel names must be provided as cell array');
-                        end
-                        assert(numel(channel_names) == size(obj.cdata, 3), ...
-                            ['Number of elements in the channel names argument ', ...
-                            'must match the number of channels.']);
-                        obj.set_channel_names(channel_names);
-                    otherwise
-                        error('img:unknown_param', 'Unknown parameter %s.', varargin{ii});
-                end
-            end
+            [varargin, channel_names] = arg(varargin, {'channel_names', 'channels', 'chans', 'wls', 'wavelengths'}, {}, false);
+            [varargin, obj.name] = arg(varargin, 'name', obj.name, false);
+            [varargin, obj.whitepoint] = arg(varargin, 'whitepoint', obj.whitepoint, false);
+            [varargin, obj.colorspace] = arg(varargin, 'colorspace', obj.colorspace, false);
+            arg(varargin);
             
-            if isempty(obj.channel_names)
+            if ~isempty(channel_names)
+                if ischar(channel_names) || isnumeric(channel_names)
+                    channel_names = num2cell(channel_names);
+                end
+                if ~iscell(channel_names)
+                    error('img:channel_format', ...
+                        'channel names must be provided as cell array');
+                end
+                assert(numel(channel_names) == size(obj.cdata, 3), ...
+                    ['Number of elements in the channel names argument ', ...
+                    'must match the number of channels.']);
+                obj.set_channel_names(channel_names);
+            else
                 % try to guess channel format
                 switch size(obj.cdata, 3)
                     case 1

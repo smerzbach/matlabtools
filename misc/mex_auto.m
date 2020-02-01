@@ -110,13 +110,11 @@ function mex_auto(varargin)
     
     % parse potentially different file names for sources, headers and the
     % mex file name
-    [varargin, mex_file] = arg(varargin, 'mex_file', {default_mex_file}, false);
-    [varargin, sources] = arg(varargin, 'sources', {default_source}, false);
-    [varargin, headers] = arg(varargin, 'headers', {default_header}, false);
+    [varargin, mex_file] = arg(varargin, 'mex_file', default_mex_file, false);
+    [varargin, sources] = arg(varargin, 'sources', default_source, false);
+    [varargin, headers] = arg(varargin, 'headers', default_header, false);
     [varargin, openmp] = arg(varargin, 'openmp', false);
-    [varargin, c11, cpp11, cPP11, CPP11] = arg(varargin, {'c11', 'cpp11', 'c++11', 'C++11'}, false);
-    
-    cpp11 = any([c11, cpp11, cPP11, CPP11]);
+    [varargin, cpp11] = arg(varargin, {'c11', 'cpp11', 'c++11', 'C++11'}, false);
     
     if openmp
         if isunix || ismac

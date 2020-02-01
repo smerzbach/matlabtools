@@ -47,10 +47,10 @@
 %     'ray_dirs', ray_dirs2);
 function varargout = embree_intersect(varargin)
     
-    [varargin, vertices] = arg(varargin, 'vertices', {{}}, false);
-    [varargin, faces] = arg(varargin, 'faces', {{}}, false);
-    [varargin, ray_origins] = arg(varargin, 'ray_origins', {{}}, false);
-    [varargin, ray_dirs] = arg(varargin, 'ray_dirs', {{}}, false);
+    [varargin, vertices] = arg(varargin, 'vertices', {}, false);
+    [varargin, faces] = arg(varargin, 'faces', {}, false);
+    [varargin, ray_origins] = arg(varargin, 'ray_origins', {}, false);
+    [varargin, ray_dirs] = arg(varargin, 'ray_dirs', {}, false);
     [varargin, compute_points] = arg(varargin, 'compute_points', true, false);
     arg(varargin);
     
