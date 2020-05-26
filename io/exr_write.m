@@ -157,5 +157,12 @@ function exr_write(im, filename, precision, channel_names, compression, varargin
         end
     end
     
+    % OpenEXR has the great design choice to store channels in alphabetical
+    % order, if we use the low-level API in the mex, this assumption is violated
+    % and can cause problems when reading the file, hence we have to sort
+    % ourselves here...
+    [channel_names, perm] = sort(channel_names);
+    im = im(:, :, perm);
+    
     exr_write_mex(im, filename, precision(1), channel_names, compression);
 end
