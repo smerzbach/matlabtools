@@ -48,6 +48,12 @@ function imcollage = collage(ims, varargin)
     [varargin, pad_channels] = arg(varargin, 'pad_channels', true, false); % add padding to channels as well to allow concatenation
     [varargin, pad_value] = arg(varargin, 'pad_value', 0, false); % value to put into padded areas
     [varargin, missing_value] = arg(varargin, 'missing_value', 0, false); % value to put into padded areas
+    [varargin, annotate] = arg(varargin, 'annotate', false, false); % true / false / cell array of strings
+    [varargin, annot_color] = arg(varargin, 'annot_color', [0, 1, 0], false);
+    [varargin, annot_font] = arg(varargin, 'annot_font', 'sans', false);
+    [varargin, annot_font_size] = arg(varargin, 'annot_font_size', 10, false);
+    [varargin, annot_pos] = arg(varargin, 'annot_pos', [1, 1], false);
+    [varargin, annot_show_progress] = arg(varargin, 'annot_show_progress', false, false);
     arg(varargin);
     
     % input checks
@@ -67,25 +73,47 @@ function imcollage = collage(ims, varargin)
     target_height = max(heights(:));
     target_width = max(widths(:));
     target_nc = max(ncs(:));
+    with_target_nc = ncs == target_nc;
     if pad
         paddings = [target_height - heights(:), target_width - widths(:)];
     end
     if pad_channels
-        paddings(:, 3) = col(ncs - target_nc); %#ok<NASGU>
+        paddings(:, 3) = col(target_nc - ncs); %#ok<NASGU>
     end
-    
-    missing_value = repmat(missing_value, 1, 1, size(ims{1}, 3));
     
     % initialize output
     if nnz(is_img)
-        tmp = find(is_img);
-        imcollage = ims{tmp(1)}.copy_without_cdata();
+        tmp = find(is_img & with_target_nc, 1);
+        imcollage = ims{tmp}.copy_without_cdata();
     else
-        imcollage = img(zeros(0, 0, size(ims{1}, 3), class(ims{1})));
+        tmp = find(with_target_nc, 1);
+        imcollage = img(zeros(0, 0, target_nc, class(ims{tmp})));
     end
     
     % convert to standard arrays
     ims(is_img) = cfun(@(im) im.cdata, ims(is_img));
+    
+    if isa(annotate, 'cell') || isa(annotate, 'string') || annotate
+        % add text labels to images
+        if isa(annotate, 'cell') || isa(annotate, 'string')
+            annot_labels = annot;
+        else
+            ndigits = floor(log10(numel(ims))) + 1;
+            annot_labels = utils.sprintf2(['%0', num2str(ndigits), 'd'], col(1 : numel(ims)));
+        end
+        for ii = 1 : numel(ims)
+            if annot_show_progress
+                utils.multiWaitbar('annotating images', (ii - 1) / numel(ims));
+            end
+            ims{ii} = AddTextToImage(ims{ii}, annot_labels{ii}, ...
+                annot_pos, annot_color, annot_font, annot_font_size);
+        end
+        if annot_show_progress
+            utils.multiWaitbar('annotating images', 'Close');
+        end
+    end
+    
+    missing_value = repmat(cast(missing_value, class(ims{1})), 1, 1, target_nc);
     
     % perform the actual padding
     if pad || pad_channels

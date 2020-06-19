@@ -45,6 +45,7 @@ classdef sv < handle
         fh;
         ah_image;
         ah_spectrum;
+        ah_profile;
         zah_spectrum;
         ph_spec;
         ph_averaging_area;
@@ -77,6 +78,15 @@ classdef sv < handle
         old_callback_wheel;
         old_callback_key_press;
         old_callback_key_release;
+        
+        last_save_path = '';
+        
+        profile_first = [];
+        profile_second = [];
+        profile_first_marker = [];
+        profile_second_marker = [];
+        profile_line = [];
+        profile_line2 = [];
     end
     
     methods(Access = public)
@@ -137,9 +147,28 @@ classdef sv < handle
             delete(fig);
         end
         
-        function add_spectrum(obj, x, y, width) %#ok<INUSD>
+        function save_image(obj)
+            % save current image to file
+            [filename, folder] = uiputfile(obj.last_save_path, 'Save image as', 'image_tonemapped.jpg|image_hdr.exr');
+            obj.last_save_path = fullfile(folder, filename);
+            
+            [~, ~, ext] = fileparts(filename);
+            switch lower(ext)
+                case {'.jpg', '.png'}
+                    imwrite(obj.iv.image_handle.CData, fullfile(folder, filename));
+                case '.exr'
+                    im = obj.iv.cur_img();
+                    exr_write(im.cdata, fullfile(folder, filename), 'half', im.channels, 'PIZ');
+                otherwise
+                    error('no can do.');
+            end
+        end
+        
+        function add_spectrum(obj, x, y, varargin)
             % permanently add spectrum to plot for comparison
-            width = default('width', obj.selector_radius);
+            [varargin, width] = arg(varargin, 'width', obj.selector_radius);
+            arg(varargin);
+            
             [~, spec_struct] = obj.average_spectra(x, y, width);
             spec_struct.im_ind = obj.iv.get_selection(1);
             
@@ -182,6 +211,68 @@ classdef sv < handle
             obj.spectra(end + 1) = spec_struct;
             obj.spec_counter = obj.spec_counter + 1;
         end
+        
+        function callback_profile(obj)
+            % add profile line between two consecutively clicked markers,
+            % image values are linearly interpolated for non-integer pixel
+            % values along the line
+            
+            if obj.ui.cb_profile.Value == 0
+                return;
+            end
+            
+            if utils.in_axis(obj.fh, obj.ah_image)
+                if isempty(obj.profile_first)
+                    obj.profile_first = obj.ah_image.CurrentPoint(1, 1 : 2);
+                else
+                    if isempty(obj.profile_second)
+                        obj.profile_second = obj.ah_image.CurrentPoint(1, 1 : 2);
+                    else
+                        obj.profile_first = obj.profile_second;
+                        obj.profile_second = obj.ah_image.CurrentPoint(1, 1 : 2);
+                    end
+                end
+            end
+
+            % extract line from image via interpolation
+            x0 = obj.profile_first(1);
+            y0 = obj.profile_first(2);
+            x1 = obj.profile_second(1);
+            y1 = obj.profile_second(2);
+
+            len = ceil(norm([y0 - y1, x0 - x1]));
+            ys = linspace(y0, y1, len);
+            xs = linspace(x0, x1, len);
+            im = obj.iv.cur_img();
+            profile = im.interp(ys, xs);
+
+            % add the actual profile line plot
+            try
+                delete(obj.profile_line2);
+            end
+            obj.profile_line2 = plot(obj.ah_profile, squeeze(profile));
+
+            % annotate selected line on the image
+            if ~isempty(obj.profile_first)
+                try %#ok<TRYNC>
+                    delete(obj.profile_first_marker);
+                end
+                obj.profile_first_marker = scatter(obj.ah_image, obj.profile_first(1), obj.profile_first(2), 500, 'x', 'MarkerEdgeColor', 'green', 'LineWidth', 2);
+            end
+            if ~isempty(obj.profile_second)
+                try %#ok<TRYNC>
+                    delete(obj.profile_second_marker);
+                end
+                obj.profile_second_marker = scatter(obj.ah_image, obj.profile_second(1), obj.profile_second(2), 500, 'x', 'MarkerEdgeColor', 'red', 'LineWidth', 2);
+                try %#ok<TRYNC>
+                    delete(obj.profile_line);
+                end
+                obj.profile_line = plot(obj.ah_image, ...
+                    [obj.profile_first(1), obj.profile_second(1)], ...
+                    [obj.profile_first(2), obj.profile_second(2)], ...
+                    ':', 'Color', 'green', 'LineWidth', 2);
+            end
+        end
     end
     
     methods(Access = protected)
@@ -190,6 +281,7 @@ classdef sv < handle
             obj.layout.l1_iv = handle(uipanel('Parent', obj.layout.l0));
             obj.layout.l1_plots = uiextras.VBoxFlex('Parent', obj.layout.l0, 'Spacing', 4);
             obj.layout.l2_spectrum = handle(uipanel('Parent', obj.layout.l1_plots));
+            obj.layout.l2_profile = handle(uipanel('Parent', obj.layout.l1_plots));
             obj.layout.l2_pixel_info = uiextras.HBoxFlex('Parent', obj.layout.l1_plots);
             obj.layout.l2_options = uiextras.Grid('Parent', obj.layout.l1_plots);
             
@@ -198,6 +290,7 @@ classdef sv < handle
             obj.zah_spectrum = zoomaxes(obj.ah_spectrum);
             obj.zah_spectrum.x_pan = false;
             obj.zah_spectrum.x_zoom = false;
+            obj.ah_profile = handle(axes('Parent', obj.layout.l2_profile));
             
             % pixel info
             obj.ui.edit_pixel_info = handle(uicontrol('Parent', obj.layout.l2_pixel_info, ...
@@ -215,19 +308,32 @@ classdef sv < handle
                 'callback', @(value) obj.set_selector_radius(value)});
             obj.ui.spinner_selector_radius = tmp.h2;
             tmp.grid.ColumnSizes = [100, 50];
-            % get obj
-            obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_misc, ...
-                'Style', 'pushbutton', 'String', 'get obj', 'Callback', @obj.callback_ui, ...
-                'FontSize', 6, 'ToolTip', 'create viewer variable in workspace'));
             % copy to clipboard
             obj.ui.bt_clipboard = handle(uicontrol('Parent', obj.layout.l3_misc, ...
                 'Style', 'pushbutton', 'String', 'copy', 'Callback', @obj.callback_ui, ...
                 'FontSize', 6, 'ToolTip', 'copy tonemapped image to clipboard'));
+            % get obj
+            obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_misc, ...
+                'Style', 'pushbutton', 'String', 'get obj', 'Callback', @obj.callback_ui, ...
+                'FontSize', 6, 'ToolTip', 'create viewer variable in workspace'));
+            % profile
+            obj.ui.cb_profile = uicontrol('Parent', obj.layout.l3_misc, ...
+                'Style', 'checkbox', 'String', 'profile', 'Value', false, ...
+                'callback', @(src, evnt) obj.callback_profile());
+            % save image as
+            obj.ui.bt_saveas = handle(uicontrol('Parent', obj.layout.l3_misc, ...
+                'Style', 'pushbutton', 'String', 'save', 'Callback', @obj.callback_ui, ...
+                'FontSize', 6, 'ToolTip', 'save tonemapped or HDR image'));
         end
         
         function finalize_layout(obj)
             obj.layout.l0.Sizes = [-2, obj.ui_right_width];
-            obj.layout.l1_plots.Sizes = [-1, -2, 30 * numel(obj.layout.l2_options.RowSizes)];
+            
+            n = numel(obj.layout.l3_misc.Children);
+            nr = ceil(n / 2);
+            set(obj.layout.l3_misc, 'Heights', -ones(nr, 1), 'Widths', [-1, -1]);
+            
+            obj.layout.l1_plots.Sizes = [-1, -1, -2, nr * 30 * numel(obj.layout.l2_options.RowSizes)];
         end
         
         function set_selector_radius(obj, value)
@@ -323,6 +429,8 @@ classdef sv < handle
                 assignin('base', 'v', obj);
             elseif src == obj.ui.bt_clipboard
                 obj.copy_clipboard();
+            elseif src == obj.ui.bt_saveas
+                obj.save_image();
             end
         end
         
@@ -356,13 +464,21 @@ classdef sv < handle
         
         function callback_mouse_up(obj, src, evnt)
             if in_axis(obj.fh, obj.ah_image) && any(ismember({'control'}, obj.key_mods))
-                % ctrl + left / right click -> add spectrum (ctrl + left == right click)
-                pos = obj.ah_image.CurrentPoint;
-                pos = round(pos(1, 1 : 2));
-                im = obj.iv.cur_img();
-                pos(1) = min(im.width, max(1, pos(1)));
-                pos(2) = min(im.height, max(1, pos(2)));
-                obj.add_spectrum(pos(1), pos(2));
+                % ctrl + left / right click -> add spectrum or profile (ctrl + left == right click)
+                if obj.ui.cb_profile.Value == 1
+                    % add profile line between two consecutively clicked
+                    % markers, image values are linearly interpolated for
+                    % non-integer pixel values along the line
+                    obj.callback_profile();
+                else
+                    % add single spectrum from pixel nearest to clicked position
+                    pos = obj.ah_image.CurrentPoint;
+                    pos = round(pos(1, 1 : 2));
+                    im = obj.iv.cur_img();
+                    pos(1) = min(im.width, max(1, pos(1)));
+                    pos(2) = min(im.height, max(1, pos(2)));
+                    obj.add_spectrum(pos(1), pos(2));
+                end
             end
             
             obj.sel_type = {};

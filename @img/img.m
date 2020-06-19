@@ -41,6 +41,8 @@ classdef img < handle & matlab.mixin.Copyable
         
         whitepoint = 'E';
         colorspace;
+        
+        timestamp = [];
     end
     
     properties(Access = public)
@@ -128,14 +130,23 @@ classdef img < handle & matlab.mixin.Copyable
             obj.interpolant_dirty = true;
             
             obj.listener_handle = addlistener(obj, 'cdata', 'PostSet', @obj.changed);
+            
+            obj.timestamp = now;
         end
         
-        function obj_copy = copy_without_cdata(obj)
+        function obj_copy = copy_without_cdata(obj, with_viewers)
             % create an "empty" copy of an existing image, containing all
             % the same meta data, including channel names
+            if ~exist('with_viewers', 'var') || isempty(with_viewers)
+                with_viewers = false;
+            end
             mc = metaclass(obj);
+            props_filter = {'cdata'; 'channel_names'};
+            if ~with_viewers
+                props_filter{end + 1} = 'viewers';
+            end
             props = {mc.PropertyList.Name}';
-            props = setdiff(props, {'cdata'; 'channel_names'; 'viewers'});
+            props = setdiff(props, props_filter);
             s = obj.size4();
             s([1, 2]) = 0;
             s(4) = 1;
@@ -655,6 +666,7 @@ classdef img < handle & matlab.mixin.Copyable
 %                     obj.changed();
 %                 end
             end
+            obj.timestamp = now;
             obj.interpolant_dirty = true;
         end
         
@@ -663,6 +675,7 @@ classdef img < handle & matlab.mixin.Copyable
             % arbitrary indexing, useful for anonymous functions
             obj.silent = true;
             obj.assign(assignment, varargin{:});
+            obj.timestamp = now;
             obj.silent = false;
         end
         
@@ -710,12 +723,14 @@ classdef img < handle & matlab.mixin.Copyable
         function obj = set_zero(obj)
             % fill entire image with zeros
             obj.cdata(:) = 0;
+            obj.timestamp = now;
             obj.interpolant_dirty = true;
         end
         
         function set_one(obj)
             % fill entire image with ones
             obj.cdata(:) = 1;
+            obj.timestamp = now;
             obj.interpolant_dirty = true;
         end
         
@@ -888,6 +903,7 @@ classdef img < handle & matlab.mixin.Copyable
                 else
                     % hand over nested calls to the builtin function
                     obj = builtin('subsasgn', obj, S, assignment);
+                    obj.timestamp = now;
                 end
             elseif strcmp(S(1).type, '()')
                 % standard subscripted assignment with braces
@@ -1030,6 +1046,7 @@ classdef img < handle & matlab.mixin.Copyable
             
             linds = sub2ind(s, ys, xs, cs, fs);
             
+            obj.timestamp = now;
             obj.interpolant_dirty = true;
             
             if nargout
@@ -1119,6 +1136,7 @@ classdef img < handle & matlab.mixin.Copyable
             % resample image
             obj_out = obj.copy_without_cdata();
             obj_out.cdata = imresize(obj.cdata, varargin{:});
+            obj.timestamp = now;
         end
         
         function height = height(obj)
@@ -1719,8 +1737,13 @@ classdef img < handle & matlab.mixin.Copyable
                 if isscalar(bins)
                     % compute unified bins for all channels
                     pixels_finite = pixels(isfinite(pixels));
-                    mi = min(pixels_finite(:));
-                    ma = max(pixels_finite(:));
+                    if isempty(pixels_finite)
+                        mi = 0;
+                        ma = 1;
+                    else
+                        mi = min(pixels_finite(:));
+                        ma = max(pixels_finite(:));
+                    end
                     if mi == ma
                         ma = mi + 10 * eps(single(mi));
                     end
@@ -1773,6 +1796,7 @@ classdef img < handle & matlab.mixin.Copyable
             if isempty(obj.cdata) || obj.silent
                 return;
             end
+            obj.timestamp = now;
             if ~isempty(obj.viewers)
                 for vi = 1 : numel(obj.viewers)
                     obj.viewers(vi).change_image();

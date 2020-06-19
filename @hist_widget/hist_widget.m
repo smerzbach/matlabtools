@@ -122,8 +122,13 @@ classdef hist_widget < handle
             
             tmp = obj.image.cdata(:);
             tmp(isnan(tmp)) = [];
-            mi = min(tmp);
-            ma = max(tmp);
+            if isempty(tmp)
+                mi = 0;
+                ma = 1;
+            else
+                mi = min(tmp);
+                ma = max(tmp);
+            end
             range = ma - mi;
             
             if isempty(obj.hh)

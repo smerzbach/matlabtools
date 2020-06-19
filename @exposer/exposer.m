@@ -478,10 +478,16 @@ classdef exposer < handle
                         control = @uigroup;
                         % no callback here to prevent repeated triggering after
                         % the continuous callback (see below)
+                        if isinteger(cast(1, obj.types{ii}))
+                            r = obj.ranges{ii}{2} - obj.ranges{ii}{1};
+                            ss = 1 ./ [r, round(r / 10)];
+                        else
+                            ss = [0.002, 0.02];
+                        end
                         params = {...
                             @uicontrol, ...
                             {'Style', 'slider', ...
-                            'SliderStep', [0.002, 0.02], ...
+                            'SliderStep', ss, ...
                             'Min', obj.ranges{ii}{1}, ...
                             'Max', obj.ranges{ii}{2}, ...
                             'Value', value}, ...
@@ -617,6 +623,13 @@ classdef exposer < handle
             
             % read back value from object to update the UI in case the
             % value differs after setting
+            obj.update(obj.props{ii});
+        end
+        
+        function update(obj, prop)
+            % read back value from object to update the UI in case the
+            % value differs after setting
+            ii = find(cellfun(@(p) strcmp(p, prop), obj.props));
             value_new = obj.object.(obj.props{ii});
             if strcmp(obj.types{ii}, 'onoff')
                 value_new = onoff2bool(value_new);
@@ -627,12 +640,15 @@ classdef exposer < handle
                 obj.handles{ii}.handles{2}.Value = value_new; % updates slider
                 obj.handles{ii}.handles{3}.String = char(tb.to_str(value_new)); % updates edit box
             elseif strcmpi(obj.controls{ii}, 'edit')
-                obj.handles{ii}.h2.String = char(tb.to_str(value));
+                obj.handles{ii}.h2.String = char(tb.to_str(value_new));
             elseif strcmpi(obj.controls{ii}, 'popupmenu')
-                ind = find(strcmp(obj.handles{ii}.h2.String, value));
+                ind = find(strcmp(obj.handles{ii}.h2.String, value_new));
                 obj.handles{ii}.h2.Value = ind;
+            elseif strcmpi(obj.controls{ii}, 'radiobutton')
+%                 ind = find(cellfun(@(range) strcmp(range, value), obj.ranges{ii}));
+                
             elseif strcmpi(obj.controls{ii}, 'spinner')
-                obj.handles{ii}.set_value(value);
+                obj.handles{ii}.set_value(value_new);
             else
                 error('exposer:unsupported_uicontrol', ...
                     'unsupported uicontrol: %s', obj.controls{ii});

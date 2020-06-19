@@ -43,6 +43,12 @@ classdef iv < handle
     
     properties(Access = public)
         parent;
+        
+        cropGlobal = true; % compute crop margins globally
+        xmins
+        xmaxs
+        ymins
+        ymaxs
     end
     
     properties(GetAccess = public, SetAccess = protected)
@@ -54,17 +60,21 @@ classdef iv < handle
         
         images; % cell array of img objects
         disp_img; % auxiliary img object for comparisons
-        collage = false; % show multiple selected images in a collage
         
         tonemapper; % map image data to a range that allows for display
         rgb_mat;
         
-        compMode = 'collage';
-        collNR = 1;
-        collNC = 1;
-        collBW = 1;
-        collBVal = 0;
-        collTR = false;
+        compMode@char = 'collage';
+        collNR@uint32 = uint32(1);
+        collNC@uint32 = uint32(1);
+        collBW@double = double(1);
+        collBVal@single = single(0);
+        collTR@logical = false;
+        collAnnot@logical = false;
+        collAnnotColor@single vector = single(1);
+        collAnnotFont@char = 'sans';
+        collAnnotFontSize@double = double(10);
+        collAnnotPos@single vector = single([1, 1]);
         
         ui; % struct storing all layout handles
         ui_general_weight;
@@ -144,7 +154,10 @@ classdef iv < handle
             obj.images = inputs;
             
             % parse inputs & set / create handles
+            doAutoScale = ~any(cellfun(@(arg) strcmpi(arg, 'scale'), varargin));
             [varargin, parent] = arg(varargin, 'parent', [], false);
+            [varargin, docrop] = arg(varargin, 'docrop', false); % crop black borders from all inputs
+            [varargin, obj.cropGlobal] = arg(varargin, 'cropGlobal', obj.cropGlobal);
             [varargin, obj.rgb_mat] = arg(varargin, 'rgb_mat', [], false);
             [varargin, obj.with_general] = arg(varargin, 'with_general', obj.default_with_general);
             [varargin, obj.ui_tonemapping_main_weight] = arg(varargin, 'ui_tonemapping_main_weight', ...
@@ -178,6 +191,11 @@ classdef iv < handle
                         ['unkown parameter name(s): ', unmatched]);
                 end
             end
+            
+            if docrop
+                obj.crop();
+            end
+            
             if isempty(parent)
                 parent = handle(figure());
                 p = parent.Position;
@@ -228,7 +246,11 @@ classdef iv < handle
             axis(obj.axes_handle, 'tight');
             
             % auto compute dynamic range to display & paint
-            obj.tonemapper.autoScale(true);
+            if doAutoScale
+                obj.tonemapper.autoScale(true);
+            else
+                obj.paint();
+            end
             obj.axes_handle.Clipping = 'off';
         end
         
@@ -241,6 +263,34 @@ classdef iv < handle
             for ii = 1 : obj.ni
                 obj.images{ii}.remove_viewer(obj);
             end
+        end
+        
+        function crop(obj)
+            [nzy, nzx] = cfun(@(im) find(sum(im.cdata, 3) > 0), obj.images);
+            obj.xmins = ones(numel(obj.images), 1);
+            obj.xmaxs = cellfun(@(im) im.w, obj.images);
+            obj.ymins = ones(numel(obj.images), 1);
+            obj.ymaxs = cellfun(@(im) im.h, obj.images);
+            not_all_zeros = cellfun(@(nzy, nzx) ~isempty(nzy) && ~isempty(nzx), nzy,nzx);
+            obj.xmins(not_all_zeros) = cellfun(@(nzx) min(nzx), nzx(not_all_zeros));
+            obj.xmaxs(not_all_zeros) = cellfun(@(nzx) max(nzx), nzx(not_all_zeros));
+            obj.ymins(not_all_zeros) = cellfun(@(nzy) min(nzy), nzy(not_all_zeros));
+            obj.ymaxs(not_all_zeros) = cellfun(@(nzy) max(nzy), nzy(not_all_zeros));
+            if obj.cropGlobal
+                obj.xmins = repmat(min(obj.xmins), numel(obj.images), 1);
+                obj.xmaxs = repmat(max(obj.xmaxs), numel(obj.images), 1);
+                obj.ymins = repmat(min(obj.ymins), numel(obj.images), 1);
+                obj.ymaxs = repmat(max(obj.ymaxs), numel(obj.images), 1);
+            end
+            
+            for ii = 1 : numel(obj.images)
+                im = obj.images{ii};
+                obj.images{ii} = im.copy_without_cdata(false);
+                im = cast(im.cdata, class(im.cdata));
+                obj.images{ii}.cdata = im(obj.ymins(ii) : obj.ymaxs(ii), ...
+                    obj.xmins(ii) : obj.xmaxs(ii), :);
+            end
+            obj.select_image(obj.selected_image);
         end
         
         function paint(obj)
@@ -281,13 +331,20 @@ classdef iv < handle
                 error('iv:unsupported_comparison_mode', ...
                     'unsupported comparison mode %s', mode);
             end
-            
-            if ~strcmpi(mode, 'collage')
-                error('iv:not_implemented', ...
-                    'comparison mode %s is not implemented yet', mode);
-            end
-                
+                            
             obj.compMode = mode;
+            
+            switch obj.compMode
+                case {'collage', 'sliding', 'horzcat', 'vertcat'}
+                    obj.ui.label_comparison_cmap.Visible = 'off';
+                    obj.ui.popup_comparison_cmap.Visible = 'off';
+                otherwise
+                    obj.ui.label_comparison_cmap.Visible = 'on';
+                    obj.ui.popup_comparison_cmap.Visible = 'on';
+            end
+            
+            obj.change_image();
+            obj.paint();
         end
         
         function select_collage_nr(obj, nr)
@@ -308,30 +365,16 @@ classdef iv < handle
             obj.paint();
         end
         
-        function set_collage_border_width(obj, value)
-            % set thickness of border in collage comparison mode
-            obj.collBW = value;
-            obj.change_image();
-            obj.paint();
-        end
-        
-        function set_collage_border_value(obj, value)
-            % set intensity of border in collage comparison mode
-            obj.collBVal = value;
-            obj.change_image();
-            obj.paint();
-        end
-        
-        function set_collage_transpose(obj, value)
-            % set intensity of border in collage comparison mode
-            obj.collTR = value;
+        function set_collage_param(obj, value, name)
+            % change all other collage-related parameters
+            obj.(name) = value;
             obj.change_image();
             obj.paint();
         end
         
         function change_image(obj)
             % update UI after a new image was selected
-            [im, im_comp] = obj.cur_img();
+            im = obj.cur_img();
             obj.tonemapper.callback_image_changed(im);
             
             obj.update_comparison_ui();
@@ -353,18 +396,49 @@ classdef iv < handle
             obj.show_meta_data();
         end
         
-        function [im1, im2] = cur_img(obj)
+        function im1 = cur_img(obj)
             % return the currently selected img object
-            if obj.collage
+            sel = obj.selected_image();
+            if numel(sel) > 2 || numel(sel) == 2 && strcmp(obj.compMode, 'collage')
+                % collage of 2 or more images
                 obj.create_collage();
                 im1 = obj.disp_img;
-                im2 = [];
-            else
-                im1 = obj.images{obj.selected_image(1)};
-                im2 = [];
-                if numel(obj.selected_image) == 2
-                    im2 = obj.images{obj.selected_image(2)};
+            elseif numel(sel) == 2
+                % comparison between two images
+                if strcmp(obj.compMode, 'A - B')
+                    obj.disp_img = obj.images{sel(1)} - obj.images{sel(2)};
+                    im1 = obj.disp_img;
+                elseif strcmp(obj.compMode, 'B - A')
+                    obj.disp_img = obj.images{sel(2)} - obj.images{sel(1)};
+                    im1 = obj.disp_img;
+                elseif strcmp(obj.compMode, 'abs(A - B)')
+                    obj.disp_img = abs(obj.images{sel(1)} - obj.images{sel(2)});
+                    im1 = obj.disp_img;
+                elseif strcmp(obj.compMode, 'RMSE')
+                    obj.disp_img = obj.images{sel(1)}.copy();
+                    obj.disp_img.assign_silent(sqrt(mean((obj.images{sel(1)} - obj.images{sel(2)}) .^ 2, 3)));
+                    obj.disp_img.set_channel_names({'RMSE'});
+                    im1 = obj.disp_img;
+                elseif strcmp(obj.compMode, 'NRMSE')
+                    obj.disp_img = obj.images{sel(1)}.copy();
+                    obj.disp_img.assign_silent(sqrt(mean((obj.images{sel(1)} - obj.images{sel(2)}) .^ 2, 3)) ./ sum([-1; 1] .* col(minmax(obj.images{sel(1)}.cdata(:)))));
+                    obj.disp_img.set_channel_names({'RMSE'});
+                    im1 = obj.disp_img;
+                elseif strcmp(obj.compMode, 'MAD')
+                    obj.disp_img = obj.images{sel(1)}.copy();
+                    obj.disp_img.assign_silent(mean(abs(obj.images{sel(1)} - obj.images{sel(2)}), 3));
+                    obj.disp_img.set_channel_names({'RMSE'});
+                    im1 = obj.disp_img;
+                else
+                    error('iv:invalidComparisonMode', 'unsupported comparison mode %s', obj.compMode);
                 end
+                
+                % store image selection
+                obj.disp_img.storeUserData(struct(...
+                    'sel', sel));
+            else
+                % display single image
+                im1 = obj.images{obj.selected_image(1)};
             end
         end
         
@@ -435,32 +509,55 @@ classdef iv < handle
             % when multiple images are selected, they can be arranged in a
             % collage (given they all share the same dimensions and
             % channels)
-            obj.collage = true;
+            obj.compMode = 'collage';
             sel = obj.selected_image();
             
             obj.check_collage_nr_nc();
             
+            timestamps = cellfun(@(im) im.timestamp, obj.images(sel));
+            
             if ~isa(obj.disp_img, 'img') ...
+                    || ~isfield(obj.disp_img.user, 'sel') ...
                     || isempty(intersect(sel, obj.disp_img.user.sel)) ...
+                    || ~isfield(obj.disp_img.user, 'timestamps') ...
+                    || ~isequal(obj.disp_img.user.timestamps, timestamps) ...
+                    || ~isfield(obj.disp_img.user, 'nc') ...
                     || obj.disp_img.user.nc ~= obj.collNC ...
                     || obj.disp_img.user.nr ~= obj.collNR ...
                     || obj.disp_img.user.border_width ~= obj.collBW ...
                     || obj.disp_img.user.border_value ~= obj.collBVal ...
-                    || obj.disp_img.user.transpose ~= obj.collTR
+                    || obj.disp_img.user.transpose ~= obj.collTR ...
+                    || obj.disp_img.user.collAnnot ~= obj.collAnnot ...
+                    || any(obj.disp_img.user.collAnnotColor ~= obj.collAnnotColor) ...
+                    || ~strcmpi(obj.disp_img.user.collAnnotFont, obj.collAnnotFont) ...
+                    || obj.disp_img.user.collAnnotFontSize ~= obj.collAnnotFontSize ...
+                    || any(obj.disp_img.user.collAnnotPos ~= obj.collAnnotPos)
                 % create new collage only when necessary
                 obj.disp_img = collage(obj.images(sel), ...
                     'border_width', obj.collBW, ...
                     'border_value', obj.collBVal, ...
                     'nc', obj.collNC, ...
                     'nr', obj.collNR, ...
-                    'transpose', obj.collTR); %#ok<CPROP>
+                    'transpose', obj.collTR, ...
+                    'annotate', obj.collAnnot, ...
+                    'annot_color', obj.collAnnotColor, ...
+                    'annot_font', obj.collAnnotFont, ...
+                    'annot_font_size', obj.collAnnotFontSize, ...
+                    'annot_pos', obj.collAnnotPos, ...
+                    'annot_show_progress', true);
                 obj.disp_img.storeUserData(struct(...
                     'sel', sel, ...
+                    'timestamps', timestamps, ...
                     'nc', obj.collNC, ...
                     'nr', obj.collNR, ...
                     'border_width', obj.collBW, ...
                     'border_value', obj.collBVal, ...
-                    'transpose', obj.collTR));
+                    'transpose', obj.collTR, ...
+                    'collAnnot', obj.collAnnot, ...
+                    'collAnnotColor', obj.collAnnotColor, ...
+                    'collAnnotFont', obj.collAnnotFont, ...
+                    'collAnnotFontSize', obj.collAnnotFontSize, ...
+                    'collAnnotPos', obj.collAnnotPos));
             end
         end
         
@@ -508,7 +605,6 @@ classdef iv < handle
             else
                 obj.ui.l4_comparison_uip.Visible = 'off';
                 obj.ui.l3_selection.Sizes = [-1, 0];
-                obj.collage = false;
             end
         end
         function ui_layout(obj)
@@ -529,13 +625,15 @@ classdef iv < handle
             obj.ui.l4_selection_uip = handle(uipanel('Parent', obj.ui.l3_selection));
             obj.ui.l4_comparison_uip = handle(uipanel('Parent', obj.ui.l3_selection, ...
                 'Title', 'Comparison', 'Visible', 'off'));
-%             obj.ui.l5_comparison = uiextras.Grid('Parent', obj.ui.l4_comparison_uip);
+            % additional buttons
+            obj.ui.l2_buttons = uiextras.Grid('Parent', obj.ui.l1_left);
             
             obj.ui.l2_tm_main.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_main, obj.ui.l1_left};
             obj.ui.l2_tm_channels.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_channels, obj.ui.l1_left};
             obj.ui.l2_tm_histogram.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_tm_histogram, obj.ui.l1_left};
             obj.ui.l2_pixel_info.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_pixel_info, obj.ui.l1_left};
             obj.ui.l2_selection.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_selection, obj.ui.l1_left};
+            obj.ui.l2_selection.MinimizeFcn = {@obj.callback_minimize, obj.ui.l2_buttons, obj.ui.l1_left};
             
             obj.ui.panels = [obj.ui.l2_tm_main, obj.ui.l2_tm_channels, ...
                 obj.ui.l2_tm_histogram, obj.ui.l2_pixel_info, obj.ui.l2_selection];
@@ -564,7 +662,7 @@ classdef iv < handle
             hist_weight = obj.ui_tonemapping_histogram_weight;
             obj.ui.l1_left.Sizes = [obj.ui_tonemapping_main_weight, ...
                 obj.ui_tonemapping_channels_weight, hist_weight, ...
-                obj.ui_pixelinfo_weight, obj.ui_selection_weight];
+                obj.ui_pixelinfo_weight, obj.ui_selection_weight, 20];
             obj.ui.l3_selection.Sizes = [-1, 0];
         end
         
@@ -583,12 +681,21 @@ classdef iv < handle
                 'props', {...
                 'compMode', 'popupmenu', {'collage', 'sliding', ...
                 'A - B', 'B - A', 'abs(A - B)', 'RMSE', 'NRMSE', 'MAD'}, @obj.select_comparison_method; 
-                'collTR', 'checkbox', {0, 1}, @obj.set_collage_transpose;
+                'collTR', 'checkbox', {0, 1}, @(value, name) obj.set_collage_param(value, name); 
                 'collNR', 'edit', {1, inf}, @obj.select_collage_nr; 
                 'collNC', 'edit', {1, inf}, @obj.select_collage_nc; 
-                'collBW', 'edit', {0, inf}, @obj.set_collage_border_width; 
-                'collBVal', 'edit', {-inf, inf}, @obj.set_collage_border_value; 
+                'collBW', 'edit', {0, inf}, @(value, name) obj.set_collage_param(value, name); 
+                'collBVal', 'edit', {-inf, inf}, @(value, name) obj.set_collage_param(value, name); 
+                'collAnnot', 'checkbox', {false, true}, @(value, name) obj.set_collage_param(value, name); 
+                'collAnnotColor', 'edit', {0, 1}, @(value, name) obj.set_collage_param(value, name); 
+                'collAnnotFont', 'edit', {}, @(value, name) obj.set_collage_param(value, name); 
+                'collAnnotFontSize', 'edit', {1, inf}, @(value, name) obj.set_collage_param(value, name); 
+                'collAnnotPos', 'edit', {-inf, inf}, @(value, name) obj.set_collage_param(value, name); 
                 });
+            
+            % additional buttons
+            obj.ui.button_crop = uicontrol(obj.ui.l2_buttons, 'Style', 'pushbutton', ...
+                'String', 'crop', 'callback', @(src, evnt) obj.crop());
             
             % slider for image selection
             obj.ui.container_image_slider = handle(uipanel('Parent', obj.ui.l1_right, 'Title', 'image selection'));
@@ -641,10 +748,6 @@ classdef iv < handle
                 if numel(sel) < 1
                     warning('iv:illegal_selection', 'please select at least one image');
                     src.Value = 1;
-                elseif numel(sel) == 1
-                    obj.collage = false;
-                elseif numel(sel) > 1
-                    obj.collage = true;
                 end
                 obj.set_image(src.Value);
                 old_slider_val = obj.ui.slider_images.get_value();
@@ -657,25 +760,16 @@ classdef iv < handle
                 end
                 obj.change_image();
                 obj.paint();
-            elseif src == obj.ui.popup_comparison_method
-                method = src.String{src.Value};
-                switch method
-                    case {'collage', 'sliding', 'horzcat', 'vertcat'}
-                        obj.ui.label_comparison_cmap.Visible = 'off';
-                        obj.ui.popup_comparison_cmap.Visible = 'off';
-                    otherwise
-                        obj.ui.label_comparison_cmap.Visible = 'on';
-                        obj.ui.popup_comparison_cmap.Visible = 'on';
-                end
-                if strcmp(method, 'collage')
-                    obj.create_collage();
-                    obj.change_image();
-                    obj.paint();
-                else
-                    warning('iv:unsupported_comparison', ...
-                        'only collage is support for image comparisons so far.')
-                    obj.ui.popup_comparison_method.Value = 1;
-                end
+%             elseif src == obj.ui.popup_comparison_method
+%                 method = src.String{src.Value};
+%                 switch method
+%                     case {'collage', 'sliding', 'horzcat', 'vertcat'}
+%                         obj.ui.label_comparison_cmap.Visible = 'off';
+%                         obj.ui.popup_comparison_cmap.Visible = 'off';
+%                     otherwise
+%                         obj.ui.label_comparison_cmap.Visible = 'on';
+%                         obj.ui.popup_comparison_cmap.Visible = 'on';
+%                 end
             elseif src == obj.ui.popup_comparison_cmap
                 src.Value
             end
