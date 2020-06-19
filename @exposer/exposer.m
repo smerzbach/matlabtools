@@ -607,7 +607,7 @@ classdef exposer < handle
                     'int32', 'uint32', ...
                     'int64', 'uint64', ...
                     'single', 'double'})
-                    value = tb.str2mat2(value);
+                    value = cast(tb.str2mat2(value), obj.types{ii});
                 else
                     error('not implemented yet');
                 end
