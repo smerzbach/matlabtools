@@ -67,7 +67,7 @@ classdef exposer < handle
             'numericorstring', ...
             'function_handle'};
         supported_dimensions = {'none', 'scalar', 'vector', 'matrix'};
-        supported_controls = {'button', 'checkbox', 'edit', 'popupmenu', 'slider', 'sliderEdit', 'spinner'};
+        supported_controls = {'button', 'checkbox', 'edit', 'popupmenu', 'radiobutton', 'slider', 'sliderEdit', 'spinner'};
         type_map = {...
             'matlab.graphics.datatype.ActivePosition', 'char', 'scalar', {'position', 'outerposition'}, 'popupmenu';
             'matlab.graphics.datatype.AlphaDataMapping', 'char', 'scalar', {'none', 'scaled', 'direct'}, 'popupmenu';
@@ -465,6 +465,11 @@ classdef exposer < handle
                             'String', vals, ...
                             'Value', index, ...
                             'Callback', @(src, evnt) obj.callback(src, evnt, ii, src.String{src.Value})};
+                    elseif strcmpi(obj.controls{ii}, 'radiobutton')
+                        control = @uibuttongroup;
+                        vals = obj.ranges{ii};
+                        index = find(strcmp(vals, value));
+                        params = {};
                     elseif strcmpi(obj.controls{ii}, 'slider')
                         control = @uicontrol;
                         % no callback here to prevent repeated triggering after
@@ -509,12 +514,30 @@ classdef exposer < handle
                 if strcmpi(obj.controls{ii}, 'button')
                     obj.handles{ii} = uicontrol('Parent', obj.ui.l1_bbs{ci}, ...
                         params{:});
+                    
                 elseif strcmpi(obj.controls{ii}, 'sliderEdit')
                     % more than two ui elements in one group
                     params = [{@uicontrol}, {{'Style', 'text', 'String', obj.props{ii}, ...
                         'HorizontalAlignment', ternary(strcmpi(obj.orientation, 'horizontal'), ...
                         'right', 'left')}}, params]; %#ok<AGROW>
                     obj.handles{ii} = uigroup(obj.ui.l1_bbs{ci}, obj.orientation, params{:});
+                    
+                elseif strcmpi(obj.controls{ii}, 'radiobutton')
+                    % radiobuttons need to be added in a buttongroup
+                    obj.handles{ii} = cell(numel(obj.ranges{ii}) + 1, 1);
+                    obj.handles{ii}{1} = uibuttongroup(obj.ui.l1_bbs{ci}, ...
+                        'SelectionChangedFcn', @(src, evnt) obj.callback(src, evnt, ii, evnt.NewValue.String), ...
+                        'Title', obj.props{ii});
+                    h = 1 / numel(obj.ranges{ii});
+                    for jj = 1 : numel(obj.ranges{ii})
+                        obj.handles{ii}{jj + 1} = uicontrol(obj.handles{ii}{1}, ...
+                            'Style', 'radiobutton', ...
+                            'String', obj.ranges{ii}{jj}, ...
+                            'HandleVisibility', 'off', ...
+                            'Units', 'normalized', ...
+                            'Position', [0, 1 - jj * h, 1, h]);
+                    end
+                    
                 else
                     obj.handles{ii} = uipair(obj.ui.l1_bbs{ci}, obj.orientation, ...
                         @uicontrol, {'Style', 'text', 'String', obj.props{ii}, ...
@@ -535,12 +558,17 @@ classdef exposer < handle
                 'Widths', repmat(-1, obj.nc, 1));
             for ci = 1 : obj.nc
                 num_children = numel(obj.ui.l1_bbs{ci}.Children);
-                obj.ui.l1_bbs{ci}.Heights = repmat(obj.button_size(2), num_children, 1);
+                heights = repmat(obj.button_size(2), num_children, 1);
+                inds_radio = find(arrayfun(@(c) isa(c, 'matlab.ui.container.ButtonGroup'), obj.ui.l1_bbs{ci}.Children));
+                for cii = 1 : numel(inds_radio)
+                    ciii = find(cellfun(@(h) iscell(h) && isequal(h{1}, obj.ui.l1_bbs{ci}.Children(inds_radio(cii))), obj.handles));
+                    heights(ciii) = obj.button_size(2) * (1 + numel(obj.ranges{ciii}));
+                end
+                obj.ui.l1_bbs{ci}.Heights = heights;
                 if ~isempty(obj.ui.l1_scroll{ci})
                     if obj.button_size(2) > 0
-                        obj.ui.l1_scroll{ci}.Heights = num_children...
-                            * (obj.button_size(2) + obj.ui.l1_bbs{ci}.Spacing)...
-                            + 2 * obj.ui.l1_bbs{ci}.Padding;
+                        obj.ui.l1_scroll{ci}.Heights = sum(obj.ui.l1_bbs{ci}.Heights) + ...
+                            num_children * (obj.ui.l1_bbs{ci}.Spacing) + 2 * obj.ui.l1_bbs{ci}.Padding;
                     else
                         error('exposer:invalid_button_size', ...
                             ['please specify an absolute button height if you want', ...
