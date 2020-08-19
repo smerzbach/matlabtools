@@ -96,7 +96,7 @@ function imcollage = collage(ims, varargin)
     if isa(annotate, 'cell') || isa(annotate, 'string') || annotate
         % add text labels to images
         if isa(annotate, 'cell') || isa(annotate, 'string')
-            annot_labels = annot;
+            annot_labels = annotate;
         else
             ndigits = floor(log10(numel(ims))) + 1;
             annot_labels = utils.sprintf2(['%0', num2str(ndigits), 'd'], col(1 : numel(ims)));

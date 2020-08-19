@@ -81,6 +81,7 @@ classdef sv < handle
         
         last_save_path = '';
         
+        plot_profile = false;
         profile_first = [];
         profile_second = [];
         profile_first_marker = [];
@@ -92,9 +93,18 @@ classdef sv < handle
     methods(Access = public)
         function obj = sv(varargin)
             % parse inputs & set / create handles
-            [varargin, parent] = arg(varargin, 'parent', [], false);
-            [varargin, obj.ui_right_width] = arg(varargin, 'ui_right_width', ...
+            first_str = find(cellfun(@ischar, varargin), 1);
+            args = varargin(first_str : end);
+            if ~isempty(first_str)
+                varargin = varargin(1 : first_str - 1);
+            end
+            [args, parent] = arg(args, 'parent', [], false);
+            [args, obj.ui_right_width] = arg(args, 'ui_right_width', ...
                 obj.default_ui_right_width);
+            [args, obj.plot_profile] = arg(args, 'plot_profile', obj.plot_profile);
+            [args, obj.profile_first] = arg(args, 'profile_first', obj.profile_first);
+            [args, obj.profile_second] = arg(args, 'profile_second', obj.profile_second);
+            varargin = [varargin; args];
             
             if isempty(parent)
                 parent = handle(figure());
@@ -164,6 +174,21 @@ classdef sv < handle
             end
         end
         
+        function r = get_roi(obj)
+            r = obj.iv.zoomaxes_handle.ph_rect;
+            if isempty(r)
+                return;
+            end
+            r = struct('x0', round(min(r.XData)), ...
+                'x1', round(max(r.XData)), ...
+                'y0', round(min(r.YData)), ...
+                'y1', round(max(r.YData)));
+            s = sprintf('(%d : %d, %d : %d, :)', r.y0, r.y1, r.x0, r.x1);
+            fprintf([s, '\n']);
+            clipboard('copy', s);
+            assignin('base', 'r', r);
+        end
+        
         function add_spectrum(obj, x, y, varargin)
             % permanently add spectrum to plot for comparison
             [varargin, width] = arg(varargin, 'width', obj.selector_radius);
@@ -212,10 +237,13 @@ classdef sv < handle
             obj.spec_counter = obj.spec_counter + 1;
         end
         
-        function callback_profile(obj)
+        function [profile, profiles] = callback_profile(obj, varargin)
             % add profile line between two consecutively clicked markers,
             % image values are linearly interpolated for non-integer pixel
             % values along the line
+            
+            [varargin, im_inds] = arg(varargin, 'im_inds', []);
+            arg(varargin);
             
             if obj.ui.cb_profile.Value == 0
                 return;
@@ -245,6 +273,10 @@ classdef sv < handle
             xs = linspace(x0, x1, len);
             im = obj.iv.cur_img();
             profile = im.interp(ys, xs);
+            
+            if ~isempty(im_inds)
+                profiles = cfun(@(im) im.interp(ys, xs), obj.iv.images(im_inds));
+            end
 
             % add the actual profile line plot
             try
@@ -308,18 +340,22 @@ classdef sv < handle
                 'callback', @(value) obj.set_selector_radius(value)});
             obj.ui.spinner_selector_radius = tmp.h2;
             tmp.grid.ColumnSizes = [100, 50];
+            % get obj
+            obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_misc, ...
+                'Style', 'pushbutton', 'String', 'get obj', 'Callback', @obj.callback_ui, ...
+                'FontSize', 6, 'ToolTip', 'create viewer variable "v" in base workspace'));
             % copy to clipboard
             obj.ui.bt_clipboard = handle(uicontrol('Parent', obj.layout.l3_misc, ...
                 'Style', 'pushbutton', 'String', 'copy', 'Callback', @obj.callback_ui, ...
                 'FontSize', 6, 'ToolTip', 'copy tonemapped image to clipboard'));
-            % get obj
-            obj.ui.bt_get_object = handle(uicontrol('Parent', obj.layout.l3_misc, ...
-                'Style', 'pushbutton', 'String', 'get obj', 'Callback', @obj.callback_ui, ...
-                'FontSize', 6, 'ToolTip', 'create viewer variable in workspace'));
             % profile
             obj.ui.cb_profile = uicontrol('Parent', obj.layout.l3_misc, ...
-                'Style', 'checkbox', 'String', 'profile', 'Value', false, ...
+                'Style', 'checkbox', 'String', 'profile', 'Value', obj.plot_profile, ...
                 'callback', @(src, evnt) obj.callback_profile());
+            % get ROI
+            obj.ui.bt_get_roi = handle(uicontrol('Parent', obj.layout.l3_misc, ...
+                'Style', 'pushbutton', 'String', 'get ROI', 'Callback', @obj.callback_ui, ...
+                'FontSize', 6, 'ToolTip', 'get currently selected ROI as variable "r" in base workspace'));
             % save image as
             obj.ui.bt_saveas = handle(uicontrol('Parent', obj.layout.l3_misc, ...
                 'Style', 'pushbutton', 'String', 'save', 'Callback', @obj.callback_ui, ...
@@ -431,6 +467,8 @@ classdef sv < handle
                 obj.copy_clipboard();
             elseif src == obj.ui.bt_saveas
                 obj.save_image();
+            elseif src == obj.ui.bt_get_roi
+                obj.get_roi();
             end
         end
         

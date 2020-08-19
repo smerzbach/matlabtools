@@ -61,6 +61,12 @@ function p = default(name, default)
             try
                 if isempty(default)
                     default_str = '[]';
+                elseif islogical(default) && numel(default) == 1
+                    if default
+                        default_str = 'true';
+                    else
+                        default_str = 'false';
+                    end
                 elseif isnumeric(default) && numel(default) == 1
                     default_str = num2str(default);
                 elseif isnumeric(default) && numel(default) > 1

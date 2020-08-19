@@ -99,6 +99,11 @@ function mex_auto(varargin)
     % if nothing different is specified, we use the _mex.cpp / _mex.h /
     % _mex.hpp / _mex.mexext naming scheme
     default_mex_file = fullfile(mpath, [mname, '_mex.', mexext]);
+    
+    if ~any(cellfun(@(arg) strcmpi(arg, 'mex_file'), varargin))
+        mex_struct = dir(default_mex_file);
+    end
+    
     default_source = fullfile(mpath, [mname, '_mex.cpp']);
     default_header = fullfile(mpath, [mname, '_mex.hpp']);
     if ~fexist(default_source)

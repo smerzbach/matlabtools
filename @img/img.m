@@ -1109,7 +1109,7 @@ classdef img < handle & matlab.mixin.Copyable
                 % we can only interpolate along those dimensions which have
                 % the necessary number of samples
                 sampling = afun(@(s) 1 : s, s(s > 1));
-                values = squeeze(obj.cdata);
+                values = squeeze(single(obj.cdata));
                 obj.interpolant = griddedInterpolant(sampling, values, ...
                     'linear', 'none');
             end

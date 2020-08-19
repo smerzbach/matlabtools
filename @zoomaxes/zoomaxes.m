@@ -77,9 +77,7 @@ classdef zoomaxes < handle
         
         update_limits = true; % should the original limits be updated if they are changed due to external events (e.g. new child added)
         dirty = false; % this is set to true when the a child has been added to the axes so that the original limits can be updated
-    end
-    
-    properties(Access = protected)
+        
         cursor_pos = []; % store cursor position when button goes down
         sel_type = {}; % store button type when it goes down
         key_mods = {}; % keyboard modifiers pressed?

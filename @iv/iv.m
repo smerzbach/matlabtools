@@ -398,7 +398,7 @@ classdef iv < handle
         
         function im1 = cur_img(obj)
             % return the currently selected img object
-            sel = obj.selected_image();
+            sel = obj.selected_image;
             if numel(sel) > 2 || numel(sel) == 2 && strcmp(obj.compMode, 'collage')
                 % collage of 2 or more images
                 obj.create_collage();
