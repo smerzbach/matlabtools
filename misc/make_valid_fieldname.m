@@ -27,7 +27,8 @@
 % e.g. to be used as a field name in a struct. All illegal characters are
 % replaced by underscores, and strings starting with those, are prepended
 % with 'f_'.
-function fieldname = make_valid_fieldname(input)
+% A mapping between the returned valid name and the original is returned.
+function [fieldname, lookup] = make_valid_fieldname(input, lookup)
     fieldname = input;
     
     % prepend letter to strings starting with numbers
@@ -35,4 +36,14 @@ function fieldname = make_valid_fieldname(input)
     
     % replace all non alpha numeric characters by 
     fieldname = regexprep(fieldname, '[\W]', '_');
+    
+    if nargout > 1 
+        if ~exist('lookup', 'var') || isempty(lookup)
+            lookup = containers.Map();
+        end
+    end
+    
+    if nargout > 1 && ~strcmp(input, fieldname)
+        lookup(fieldname) = input;
+    end
 end
