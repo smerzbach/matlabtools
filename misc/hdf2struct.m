@@ -34,7 +34,8 @@
 % Optionally, certain parts of the hierarchy can be excluded, and redundant
 % subtrees like /path/to/data/Data can be skipped in the struct by
 % assigning Data directly to s.path.to.data instead of s.path.to.data.Data.
-function [s, tree] = hdf2struct(input, excludes, skips)
+% A lookup structure for all altered fieldnames is returned.
+function [s, tree, lookup] = hdf2struct(input, excludes, skips, lookup)
     if ~exist('excludes', 'var')
         excludes = {};
     end
@@ -51,11 +52,15 @@ function [s, tree] = hdf2struct(input, excludes, skips)
         skips = {skips};
     end
     
+    if ~exist('lookup', 'var') || isempty(lookup)
+        lookup = containers.Map();
+    end
+    
     if ischar(input)
         % filename given as input -> extract meta data using hdf5info
         meta = hdf5info(input);
         node = meta.GroupHierarchy;
-        [s, tree] = hdf2struct(node, excludes, skips);
+        [s, tree, lookup] = hdf2struct(node, excludes, skips, lookup);
         return;
     else
         node = input;
@@ -76,7 +81,8 @@ function [s, tree] = hdf2struct(input, excludes, skips)
             if isa(tmp, 'hdf5.h5string')
                 tmp = tmp.Data;
             end
-            s.(mv(filename(node.Attributes(ai).Name))) = tmp;
+            [fn, lookup] = mv(filename(node.Attributes(ai).Name), lookup);
+            s.(fn) = tmp;
             
             % add to tree string as well
             tree = [tree, newline, 'A  ', node.Attributes(ai).Name]; %#ok<AGROW>
@@ -92,7 +98,8 @@ function [s, tree] = hdf2struct(input, excludes, skips)
             tmp = afun(@(tmp) tmp.Data, tmp);
             tmp = string(tmp);
         end
-        s.(mv(filename(node.Datasets(di).Name))) = tmp;
+        [fn, lookup] = mv(filename(node.Datasets(di).Name), lookup);
+        s.(fn) = tmp;
         
         % add entry to tree string
         tree = [tree, newline, 'D  ', node.Datasets(di).Name, ' [', node.Datasets(di).Datatype.Class, ']']; %#ok<AGROW>
@@ -105,7 +112,8 @@ function [s, tree] = hdf2struct(input, excludes, skips)
     for ci = 1 : numel(node.Groups)
         node_name = node.Groups(ci).Name;
         if ~any(cellfun(@(exclude) strcmp(filename(node_name), exclude), excludes))
-            [s.(mv(filename(node_name))), subtree] = hdf2struct(node.Groups(ci), excludes, skips);
+            [fn, lookup] = mv(filename(node_name), lookup);
+            [s.(fn), subtree, lookup] = hdf2struct(node.Groups(ci), excludes, skips, lookup);
             
             % add to tree string as well
             tree = [tree, newline, subtree]; %#ok<AGROW>
